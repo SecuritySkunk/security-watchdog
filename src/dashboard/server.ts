@@ -411,8 +411,8 @@ export class DashboardServer {
     });
 
     // ─── Fallback to index.html for SPA ──────────────────────
-
-    this.app.get('*', (_req, res) => {
+    // Express 5 requires named wildcard parameters
+    this.app.get('/{*splat}', (_req, res) => {
       res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
   }

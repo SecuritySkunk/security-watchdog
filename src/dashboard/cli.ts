@@ -17,8 +17,8 @@ function getArg(name: string): string | undefined {
   return args[idx + 1];
 }
 
-const dbPath = getArg('db') || process.env.WATCHDOG_DB || './watchdog.db';
-const port = parseInt(getArg('port') || process.env.WATCHDOG_PORT || '3847');
+const dbPath = getArg('db') || process.env['WATCHDOG_DB'] || './watchdog.db';
+const port = parseInt(getArg('port') || process.env['WATCHDOG_PORT'] || '3847');
 
 console.log(`
 🛡️  Security Watchdog Dashboard
