@@ -89,6 +89,18 @@ export type {
   AgentResult,
 } from './agent/security-agent.js';
 
+// Auditor Module
+export { AuditorDaemon, DEFAULT_CONFIG as AUDITOR_DEFAULT_CONFIG } from './auditor/auditor-daemon.js';
+export type {
+  AuditorConfig,
+  SystemMode as AuditorSystemMode,
+  ComponentHealth,
+  SystemHealth,
+  WorkspaceScanResult,
+  AuditorMetrics,
+  AuditorEvents,
+} from './auditor/auditor-daemon.js';
+
 // Shared Types (Enums)
 export {
   ClassificationLevel as Classification,
