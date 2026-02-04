@@ -81,6 +81,14 @@ export {
 } from './shared/database.js';
 export type { DatabaseConfig } from './shared/database.js';
 
+// Agent Module
+export { SecurityAgent, DEFAULT_CONFIG as AGENT_DEFAULT_CONFIG } from './agent/security-agent.js';
+export type {
+  SecurityAgentConfig,
+  AgentAnalysis,
+  AgentResult,
+} from './agent/security-agent.js';
+
 // Shared Types (Enums)
 export {
   ClassificationLevel as Classification,
