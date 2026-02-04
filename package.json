@@ -1,6 +1,6 @@
 {
   "name": "@openclaw/security-watchdog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Security layer for OpenClaw to prevent AI data leakage",
   "type": "module",
   "main": "dist/index.js",

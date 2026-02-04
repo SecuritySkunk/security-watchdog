@@ -4,7 +4,7 @@
 
 Security Watchdog scans outbound content from AI agents to detect and protect sensitive information before it leaves your system. It provides a comprehensive pipeline for PII detection, quarantine management, and audit logging.
 
-[![Tests](https://img.shields.io/badge/tests-121%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-166%20passing-brightgreen)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
 
@@ -225,6 +225,112 @@ docker run -d -p 5002:3000 mcr.microsoft.com/presidio-analyzer
 # Or via Python
 pip install presidio-analyzer
 python -m presidio_analyzer.app
+```
+
+## Dashboard
+
+Security Watchdog includes a web-based dashboard for managing patterns, entries, and reviewing quarantined content.
+
+### Starting the Dashboard
+
+```bash
+# Using npm script (recommended)
+npm run dashboard -- --db ~/.openclaw/security/registry.db
+
+# Or using environment variables
+WATCHDOG_DB=./my-registry.db WATCHDOG_PORT=8080 npm run dashboard
+
+# Or directly with tsx
+npx tsx src/dashboard/cli.ts --db ./registry.db --port 3847
+```
+
+### Dashboard Features
+
+- **📊 Overview Stats** - Real-time metrics on scans, blocks, and quarantines
+- **🚨 Quarantine Queue** - Review and approve/reject flagged content
+- **🔍 Pattern Management** - View all detection patterns by category
+- **📋 User Entries** - Manage user-defined sensitive data and variants
+- **📜 Audit Log** - Browse recent security decisions
+- **🧪 Test Scanner** - Test content against the scanner in real-time
+- **⚙️ Posture Control** - Adjust security posture from the UI
+
+### Dashboard Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `http://localhost:3847/` | Web dashboard UI |
+| `http://localhost:3847/health` | Health check (for load balancers) |
+| `http://localhost:3847/metrics` | Prometheus-compatible metrics |
+| `http://localhost:3847/api/*` | REST API endpoints |
+
+## Production Deployment
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `WATCHDOG_DB` | Path to SQLite database | `~/.openclaw/security/registry.db` |
+| `WATCHDOG_PORT` | Dashboard server port | `3847` |
+| `NODE_ENV` | Environment mode | `development` |
+| `LOG_LEVEL` | Log level (debug/info/warn/error) | `info` in prod |
+
+### Running in Production
+
+```bash
+# Set production mode
+export NODE_ENV=production
+
+# Start with PM2 (recommended for production)
+pm2 start "npm run dashboard" --name watchdog-dashboard
+
+# Or with systemd (create a service file)
+# Or with Docker (see below)
+```
+
+### Log Rotation
+
+In production, pipe logs to a rotation utility:
+
+```bash
+# Using pino-rotate
+npm run dashboard 2>&1 | npx pino-rotate --frequency daily --path ./logs/
+
+# Using logrotate (Linux)
+npm run dashboard >> /var/log/watchdog/dashboard.log 2>&1
+# Configure /etc/logrotate.d/watchdog for rotation
+```
+
+### Health Checks
+
+The `/health` endpoint returns:
+- `200 OK` with `{"status": "ok"}` when healthy
+- `503 Service Unavailable` when shutting down
+
+Use for Kubernetes probes:
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3847
+  initialDelaySeconds: 5
+  periodSeconds: 10
+```
+
+### Metrics
+
+The `/metrics` endpoint provides Prometheus-compatible metrics:
+
+```
+watchdog_uptime_seconds
+watchdog_http_requests_total
+watchdog_scans_total
+watchdog_blocks_total
+watchdog_quarantines_total
+watchdog_quarantines_pending
+watchdog_errors_total
+watchdog_patterns_count
+watchdog_entries_count
 ```
 
 ## API Reference

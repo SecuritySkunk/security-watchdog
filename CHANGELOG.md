@@ -63,12 +63,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture diagram
 - Installation and usage guides
 
+## [0.2.0] - 2026-02-04
+
+### Added
+
+#### Dashboard Module
+- Web-based dashboard UI with dark theme
+- Real-time stats display (scans, blocks, quarantines)
+- Quarantine queue management (approve/reject)
+- Pattern browser with category filtering
+- User entry viewer with variant counts
+- Audit log viewer with pagination
+- Test scanner for ad-hoc content testing
+- Posture control from the UI
+- Auto-refresh every 30 seconds
+
+#### Production Hardening
+- `/health` endpoint for load balancer health checks
+- `/metrics` endpoint with Prometheus-compatible format
+- Graceful shutdown handling (SIGINT, SIGTERM, SIGHUP)
+- Request counting and metrics tracking
+- Environment-based configuration
+- Improved error handling and logging
+- Server startup/shutdown logging
+
+#### CLI Improvements
+- `--help` flag with usage documentation
+- Database existence validation on startup
+- Default database path (`~/.openclaw/security/registry.db`)
+- Environment variable documentation
+- Better error messages
+
+### Changed
+- Test count updated to 166 (was 121)
+- Improved documentation with dashboard and production sections
+
+### Documentation
+- Added dashboard usage instructions
+- Added production deployment guide
+- Added health check and metrics documentation
+- Added environment variables reference
+- Added PM2 and systemd deployment examples
+
 ## [Unreleased]
 
 ### Planned
 - OpenClaw hook directory integration
 - Real-time posture adjustment based on inbound content
-- Web dashboard for quarantine management
 - Webhook notifications for flagged content
 - Additional language support beyond English
 - Custom recognizer support for Presidio
