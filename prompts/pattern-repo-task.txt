@@ -1,0 +1,134 @@
+## TASK: Implement PatternRepository
+
+Implement the PatternRepository class for the Security Watchdog registry module.
+
+## DATABASE SCHEMA (patterns table)
+
+```sql
+CREATE TABLE patterns (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    locale_id               TEXT    NOT NULL REFERENCES locales(locale_id) ON DELETE CASCADE,
+    category                TEXT    NOT NULL,
+    pattern_type            TEXT    NOT NULL,
+    display_name            TEXT    NOT NULL,
+    presidio_recognizer     TEXT,
+    regex_pattern           TEXT,
+    regex_flags             TEXT    DEFAULT 'i',
+    validation_function     TEXT,
+    default_classification  TEXT    NOT NULL DEFAULT 'NEVER_SHARE',
+    false_positive_hints    TEXT,  -- JSON array
+    example_values          TEXT,  -- JSON array
+    is_active               INTEGER NOT NULL DEFAULT 1,
+    created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    UNIQUE(locale_id, category, pattern_type)
+);
+```
+
+## TYPES TO USE
+
+```typescript
+import Database from 'better-sqlite3';
+
+export enum ClassificationLevel {
+  NEVER_SHARE = "NEVER_SHARE",
+  ASK_FIRST = "ASK_FIRST",
+  INTERNAL_ONLY = "INTERNAL_ONLY",
+  PUBLIC = "PUBLIC",
+}
+
+export interface PatternDefinition {
+  id: number;
+  localeId: string;
+  category: string;
+  patternType: string;
+  displayName: string;
+  presidioRecognizer: string | null;
+  regexPattern: string | null;
+  regexFlags: string;
+  validationFunction: string | null;
+  defaultClassification: ClassificationLevel;
+  falsePositiveHints: string[];
+  exampleValues: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePatternInput {
+  localeId: string;
+  category: string;
+  patternType: string;
+  displayName: string;
+  presidioRecognizer?: string;
+  regexPattern?: string;
+  regexFlags?: string;
+  validationFunction?: string;
+  defaultClassification: ClassificationLevel;
+  falsePositiveHints?: string[];
+  exampleValues?: string[];
+}
+
+export interface UpdatePatternInput {
+  displayName?: string;
+  presidioRecognizer?: string;
+  regexPattern?: string;
+  regexFlags?: string;
+  validationFunction?: string;
+  defaultClassification?: ClassificationLevel;
+  falsePositiveHints?: string[];
+  exampleValues?: string[];
+  isActive?: boolean;
+}
+
+export interface PatternQueryFilter {
+  localeId?: string;
+  category?: string;
+  isActive?: boolean;
+  classification?: ClassificationLevel;
+  limit?: number;
+  offset?: number;
+}
+
+export class RegistryError extends Error {
+  public readonly code: RegistryErrorCode;
+  public readonly details?: Record<string, unknown>;
+  constructor(code: RegistryErrorCode, message: string, details?: Record<string, unknown>) {
+    super(message);
+    this.name = "RegistryError";
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export enum RegistryErrorCode {
+  CONNECTION_ERROR = "REG_CONNECTION_ERROR",
+  QUERY_ERROR = "REG_QUERY_ERROR",
+  CONSTRAINT_VIOLATION = "REG_CONSTRAINT_VIOLATION",
+  NOT_FOUND = "REG_NOT_FOUND",
+  INVALID_CLASSIFICATION = "REG_INVALID_CLASSIFICATION",
+  INVALID_LOCALE = "REG_INVALID_LOCALE",
+}
+```
+
+## METHODS TO IMPLEMENT
+
+1. `create(input: CreatePatternInput): PatternDefinition` - Insert new pattern, return with ID
+2. `getById(id: number): PatternDefinition | null` - Get single pattern
+3. `update(id: number, input: UpdatePatternInput): PatternDefinition` - Update fields
+4. `deactivate(id: number): void` - Soft delete (set is_active = 0)
+5. `hardDelete(id: number): void` - Physical delete
+6. `list(filter?: PatternQueryFilter): PatternDefinition[]` - List with filters
+7. `preloadForScanner(localeIds: string[]): PatternDefinition[]` - Bulk load for scanner
+8. `count(filter?: PatternQueryFilter): number` - Count matching patterns
+
+## REQUIREMENTS
+
+- Use prepared statements for all queries
+- Validate locale exists before insert
+- Handle UNIQUE constraint violations
+- Convert snake_case DB columns to camelCase in output
+- Parse JSON arrays for falsePositiveHints and exampleValues
+- Include proper error handling with RegistryError
+
+Output the complete PatternRepository class implementation.

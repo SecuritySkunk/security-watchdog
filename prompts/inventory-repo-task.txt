@@ -1,0 +1,132 @@
+## TASK: Implement InventoryRepository
+
+Implement the InventoryRepository class for tracking sensitive data locations.
+
+## DATABASE SCHEMA
+
+```sql
+CREATE TABLE inventory (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    registry_ref_type       TEXT    NOT NULL CHECK (registry_ref_type IN ('pattern', 'user_entry')),
+    registry_ref_id         INTEGER NOT NULL,
+    registry_ref_label      TEXT    NOT NULL,
+    storage_location        TEXT    NOT NULL,
+    storage_type            TEXT    NOT NULL CHECK (storage_type IN ('file', 'session', 'memory', 'context')),
+    data_form               TEXT    NOT NULL DEFAULT 'verbatim' CHECK (data_form IN ('verbatim', 'paraphrased', 'derived', 'reference')),
+    detected_by             TEXT    NOT NULL,
+    current_classification  TEXT    NOT NULL,
+    is_active               INTEGER NOT NULL DEFAULT 1,
+    first_detected_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    last_verified_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    deactivated_at          TEXT,
+    deactivated_by          TEXT,
+    UNIQUE(registry_ref_type, registry_ref_id, storage_location, storage_type)
+);
+
+-- View for posture calculation
+CREATE VIEW v_posture_input AS
+SELECT 
+    COUNT(CASE WHEN current_classification = 'NEVER_SHARE' THEN 1 END) AS never_share_count,
+    COUNT(CASE WHEN current_classification = 'ASK_FIRST' THEN 1 END) AS ask_first_count,
+    COUNT(CASE WHEN current_classification = 'INTERNAL_ONLY' THEN 1 END) AS internal_only_count,
+    COUNT(*) AS total_active
+FROM inventory
+WHERE is_active = 1;
+```
+
+## TYPES
+
+```typescript
+import Database from 'better-sqlite3';
+
+export enum ClassificationLevel {
+  NEVER_SHARE = "NEVER_SHARE",
+  ASK_FIRST = "ASK_FIRST",
+  INTERNAL_ONLY = "INTERNAL_ONLY",
+  PUBLIC = "PUBLIC",
+}
+
+export type DataForm = 'verbatim' | 'paraphrased' | 'derived' | 'reference';
+
+export interface InventoryEntry {
+  id: number;
+  registryRefType: 'pattern' | 'user_entry';
+  registryRefId: number;
+  registryRefLabel: string;
+  storageLocation: string;
+  storageType: 'file' | 'session' | 'memory' | 'context';
+  dataForm: DataForm;
+  detectedBy: string;
+  currentClassification: ClassificationLevel;
+  isActive: boolean;
+  firstDetectedAt: string;
+  lastVerifiedAt: string;
+  deactivatedAt: string | null;
+  deactivatedBy: string | null;
+}
+
+export interface CreateInventoryInput {
+  registryRefType: 'pattern' | 'user_entry';
+  registryRefId: number;
+  registryRefLabel: string;
+  storageLocation: string;
+  storageType: 'file' | 'session' | 'memory' | 'context';
+  dataForm?: DataForm;
+  detectedBy: string;
+  currentClassification: ClassificationLevel;
+}
+
+export interface UpdateInventoryInput {
+  storageLocation?: string;
+  storageType?: 'file' | 'session' | 'memory' | 'context';
+  dataForm?: DataForm;
+  currentClassification?: ClassificationLevel;
+  isActive?: boolean;
+  deactivatedBy?: string;
+}
+
+export interface InventoryQueryFilter {
+  classification?: ClassificationLevel;
+  storageType?: 'file' | 'session' | 'memory' | 'context';
+  storageLocation?: string;
+  isActive?: boolean;
+  registryRefType?: 'pattern' | 'user_entry';
+  limit?: number;
+  offset?: number;
+}
+
+export interface InventoryStats {
+  totalActive: number;
+  totalInactive: number;
+  byClassification: Record<string, number>;
+  byStorageType: Record<string, number>;
+  byDataForm: Record<string, number>;
+  oldestActiveItem: InventoryEntry | null;
+  newestActiveItem: InventoryEntry | null;
+}
+```
+
+## METHODS TO IMPLEMENT
+
+1. `addOrUpdate(input: CreateInventoryInput): InventoryEntry` - Upsert on unique key
+2. `getById(id: number): InventoryEntry | null`
+3. `update(id: number, input: UpdateInventoryInput): InventoryEntry`
+4. `deactivate(id: number, deactivatedBy: string): void`
+5. `verify(id: number): void` - Update last_verified_at
+6. `query(filter?: InventoryQueryFilter): InventoryEntry[]`
+7. `getStats(): InventoryStats`
+8. `getPostureInput(): { neverShareCount, askFirstCount, internalOnlyCount, totalActive }`
+9. `deactivateByLocation(storageLocation: string, deactivatedBy: string): number`
+10. `purgeInactive(olderThanDays: number): number`
+11. `findStale(olderThanHours: number): InventoryEntry[]`
+
+## REQUIREMENTS
+
+- Use INSERT OR REPLACE for addOrUpdate based on unique constraint
+- Convert snake_case to camelCase
+- getStats should compute aggregates from queries
+- getPostureInput should use the v_posture_input view
+- purgeInactive deletes items where is_active=0 and deactivated_at is older than cutoff
+- findStale finds items where is_active=1 and last_verified_at is older than cutoff
+
+Output the complete InventoryRepository class with all imports.

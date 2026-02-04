@@ -1,0 +1,658 @@
+{
+  "$schema": "locale-definition",
+  "locale_id": "us-ga",
+  "version": "1.0.0",
+  "display_name": "United States — Georgia",
+  "description": "Federal US PII patterns with Georgia state overlay. Covers SSN, EIN, driver's license, passport, credit cards, bank routing, phone, email, ZIP codes, IP/MAC addresses, DOB, military service numbers, DEA numbers, and Medicare/Medicaid identifiers. Georgia-specific: Code 10-1-912 breach notification, Georgia DL format (7-9 digits).",
+
+  "patterns": [
+    {
+      "id": "us-ssn",
+      "category": "government_id",
+      "name": "US Social Security Number",
+      "description": "9-digit US SSN in XXX-XX-XXXX, XXX XX XXXX, or XXXXXXXXX format. Area numbers 000, 666, and 900-999 are invalid. Group number 00 and serial number 0000 are invalid.",
+      "presidio_entity": "US_SSN",
+      "presidio_recognizer": "UsSsnRecognizer",
+      "regex": "\\b(?!000|666|9\\d{2})\\d{3}[- ]?(?!00)\\d{2}[- ]?(?!0000)\\d{4}\\b",
+      "regex_flags": "g",
+      "validation": "ssn_area_check",
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "123-45-6789",
+        "123 45 6789",
+        "123456789",
+        "078-05-1120",
+        "219-09-9999",
+        "577-43-1234"
+      ],
+      "false_positive_examples": [
+        "000-12-3456",
+        "666-45-6789",
+        "900-12-3456",
+        "123-00-6789",
+        "123-45-0000",
+        "999-99-9999",
+        "123-456-789",
+        "12-345-6789"
+      ],
+      "regulatory_reference": "GA Code 10-1-912(a)(6); 42 USC 405(c)(2)(C)(viii); IRS Publication 15",
+      "notes": "Presidio primary detector. Regex as fallback when Presidio is unavailable. SSN area check rejects known invalid ranges including advertising SSNs (078-05-1120 was valid historically but was publicly disclosed)."
+    },
+    {
+      "id": "us-ein",
+      "category": "financial",
+      "name": "Employer Identification Number",
+      "description": "9-digit US EIN in XX-XXXXXXX format. First two digits are the IRS campus code (01-06, 10-16, 20-27, 30-39, 40-48, 50-59, 60-68, 71-77, 80-88, 90-92, 95, 98, 99).",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b(?:0[1-6]|1[0-6]|2[0-7]|3[0-9]|4[0-8]|5[0-9]|6[0-8]|7[1-7]|8[0-8]|9[0-2589])-\\d{7}\\b",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "INTERNAL_ONLY",
+      "examples": [
+        "12-3456789",
+        "01-1234567",
+        "95-7654321",
+        "30-0000001",
+        "68-1234567"
+      ],
+      "false_positive_examples": [
+        "00-1234567",
+        "07-1234567",
+        "69-1234567",
+        "93-1234567",
+        "12-345678",
+        "123-456789"
+      ],
+      "regulatory_reference": "26 USC 6109; IRS Rev. Proc. 98-47",
+      "notes": "No Presidio built-in recognizer. Uses regex with campus code validation. Classified INTERNAL_ONLY rather than NEVER_SHARE because EINs are semi-public (required on tax filings)."
+    },
+    {
+      "id": "us-passport",
+      "category": "government_id",
+      "name": "US Passport Number",
+      "description": "US passport number: 9 digits for standard passports (issued since 1981), or 1-2 letters followed by 6-7 digits for older formats and passport cards.",
+      "presidio_entity": "US_PASSPORT",
+      "presidio_recognizer": "UsPassportRecognizer",
+      "regex": "\\b[A-Z]{0,2}\\d{6,9}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "123456789",
+        "987654321",
+        "C12345678",
+        "AB1234567"
+      ],
+      "false_positive_examples": [
+        "12345",
+        "1234567890",
+        "ABCDEFGHI",
+        "ABC1234567890"
+      ],
+      "regulatory_reference": "22 CFR 51.1; GA Code 10-1-912",
+      "notes": "Presidio primary detector. High false positive rate for 9-digit-only regex; rely on Presidio's contextual analysis. Regex is a loose fallback."
+    },
+    {
+      "id": "us-ga-drivers-license",
+      "category": "government_id",
+      "name": "Georgia Driver's License Number",
+      "description": "Georgia driver's license: 7 to 9 digits with no alpha prefix. Georgia is one of several states using a purely numeric format.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b\\d{7,9}\\b",
+      "regex_flags": "g",
+      "validation": "ga_dl_format",
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "1234567",
+        "12345678",
+        "123456789",
+        "0512345",
+        "98765432"
+      ],
+      "false_positive_examples": [
+        "123456",
+        "1234567890",
+        "12345",
+        "ABCDEFGH",
+        "12-345-6789"
+      ],
+      "regulatory_reference": "GA Code 10-1-912(a)(6); GA Code 40-5-20",
+      "notes": "High false positive potential because 7-9 digit numbers are common. Validation function checks context (proximity to keywords like 'license', 'DL', 'driver'). Scanner should use contextual scoring and only flag when confidence exceeds threshold."
+    },
+    {
+      "id": "us-credit-card",
+      "category": "financial",
+      "name": "Credit Card Number",
+      "description": "Major credit card networks: Visa (4xxx), Mastercard (51-55xx, 2221-2720), Amex (34xx, 37xx), Discover (6011, 644-649, 65xx). 13-19 digits with Luhn check.",
+      "presidio_entity": "CREDIT_CARD",
+      "presidio_recognizer": "CreditCardRecognizer",
+      "regex": "\\b(?:4\\d{12}(?:\\d{3})?|5[1-5]\\d{14}|2(?:2(?:2[1-9]|[3-9]\\d)|[3-6]\\d{2}|7(?:[01]\\d|20))\\d{12}|3[47]\\d{13}|6(?:011|4[4-9]\\d|5\\d{2})\\d{12})\\b",
+      "regex_flags": "g",
+      "validation": "luhn",
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "4111111111111111",
+        "4111 1111 1111 1111",
+        "5500000000000004",
+        "340000000000009",
+        "371449635398431",
+        "6011000000000004",
+        "2221000000000009"
+      ],
+      "false_positive_examples": [
+        "4111111111111112",
+        "1234567890123456",
+        "0000000000000000",
+        "9999999999999999",
+        "411111111111",
+        "55000000000000045"
+      ],
+      "regulatory_reference": "GA Code 10-1-912(a)(6); PCI DSS v4.0; GLBA Reg P",
+      "notes": "Presidio primary detector with Luhn validation. Numbers with spaces or dashes are normalized before Luhn check. GA 10-1-912 explicitly lists financial account numbers as protected personal information."
+    },
+    {
+      "id": "us-bank-routing",
+      "category": "financial",
+      "name": "US Bank Routing Number (ABA)",
+      "description": "9-digit ABA routing transit number. First two digits range 01-12, 21-32, 61-72, or 80. Check digit validated via weighted sum modulo 10.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b(?:0[1-9]|[12]\\d|3[0-2]|6[1-9]|7[0-2]|80)\\d{7}\\b",
+      "regex_flags": "g",
+      "validation": "aba_routing_check",
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "021000021",
+        "011401533",
+        "091000019",
+        "061000104",
+        "121000358"
+      ],
+      "false_positive_examples": [
+        "000000000",
+        "991234567",
+        "021000020",
+        "12345678",
+        "1234567890"
+      ],
+      "regulatory_reference": "GLBA Reg P; 12 CFR 229.2",
+      "notes": "No Presidio built-in recognizer. ABA check digit is a weighted sum: (3*(d1+d4+d7) + 7*(d2+d5+d8) + (d3+d6+d9)) mod 10 == 0. High false positive rate for 9-digit numbers; requires context scoring."
+    },
+    {
+      "id": "us-bank-account",
+      "category": "financial",
+      "name": "US Bank Account Number",
+      "description": "US bank account number, typically 8-17 digits. No standard format across banks; detection relies on Presidio context analysis and proximity to routing numbers.",
+      "presidio_entity": "US_BANK_NUMBER",
+      "presidio_recognizer": "UsAccountNumberRecognizer",
+      "regex": null,
+      "regex_flags": null,
+      "validation": null,
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "12345678",
+        "123456789012",
+        "00123456789012345"
+      ],
+      "false_positive_examples": [
+        "1234567",
+        "123456789012345678"
+      ],
+      "regulatory_reference": "GA Code 10-1-912(a)(6); GLBA Reg P",
+      "notes": "Presidio-only detection. No regex fallback due to extremely high false positive rate for generic digit sequences. Relies on contextual cues (proximity to 'account', 'routing', bank name)."
+    },
+    {
+      "id": "us-email",
+      "category": "contact",
+      "name": "Email Address",
+      "description": "Standard email address format: local-part@domain. Detects common email patterns across all TLDs.",
+      "presidio_entity": "EMAIL_ADDRESS",
+      "presidio_recognizer": "EmailRecognizer",
+      "regex": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "ASK_FIRST",
+      "examples": [
+        "user@example.com",
+        "first.last@company.org",
+        "user+tag@domain.co.uk",
+        "test123@gmail.com",
+        "admin@sub.domain.com"
+      ],
+      "false_positive_examples": [
+        "user@",
+        "@domain.com",
+        "user@.com",
+        "user@domain",
+        "not an email"
+      ],
+      "regulatory_reference": "CAN-SPAM Act 15 USC 7701; GA Code 10-1-912",
+      "notes": "Presidio primary detector. Email is ASK_FIRST because it is commonly shared in legitimate communications but constitutes PII that could identify individuals."
+    },
+    {
+      "id": "us-phone-nanp",
+      "category": "contact",
+      "name": "US/Canada Phone Number (NANP)",
+      "description": "North American Numbering Plan phone number in various formats: (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX, +1XXXXXXXXXX. Area code cannot start with 0 or 1.",
+      "presidio_entity": "PHONE_NUMBER",
+      "presidio_recognizer": "PhoneRecognizer",
+      "regex": "(?:\\+?1[- .]?)?\\(?[2-9]\\d{2}\\)?[- .]?[2-9]\\d{2}[- .]?\\d{4}",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "ASK_FIRST",
+      "examples": [
+        "(555) 123-4567",
+        "555-123-4567",
+        "555.123.4567",
+        "+1 555 123 4567",
+        "+15551234567",
+        "5551234567"
+      ],
+      "false_positive_examples": [
+        "(055) 123-4567",
+        "(155) 123-4567",
+        "555-123-456",
+        "123-456-78901",
+        "1234567890"
+      ],
+      "regulatory_reference": "TCPA 47 USC 227; GA Code 10-1-912",
+      "notes": "Presidio primary detector. Phone numbers are ASK_FIRST because they commonly appear in contact exchanges but are PII. NANP validation rejects area codes starting with 0 or 1."
+    },
+    {
+      "id": "us-address",
+      "category": "contact",
+      "name": "US Physical Address",
+      "description": "US street addresses including house number, street name, city, state, and ZIP code. Complex pattern with many variations.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b\\d{1,5}\\s+[A-Za-z]+(\\s+[A-Za-z]+){0,4}\\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane|Rd|Road|Ct|Court|Way|Pl|Place|Cir|Circle)\\.?\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "ASK_FIRST",
+      "examples": [
+        "123 Main Street",
+        "456 Oak Ave",
+        "789 Elm Boulevard",
+        "1001 Peachtree Dr",
+        "42 Maple Ln"
+      ],
+      "false_positive_examples": [
+        "Main Street",
+        "the avenue",
+        "123",
+        "Go down the road"
+      ],
+      "regulatory_reference": "GA Code 10-1-912; 18 USC 119 (restricted personal information)",
+      "notes": "No Presidio built-in recognizer for US addresses. Regex covers common patterns but misses apartments, PO boxes, and unusual formats. Significant false positive potential; relies on Scanner confidence thresholds."
+    },
+    {
+      "id": "us-zip-code",
+      "category": "location",
+      "name": "US ZIP Code",
+      "description": "5-digit ZIP code or ZIP+4 format (XXXXX or XXXXX-XXXX). Not flagged in isolation unless combined with other identifiers.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b\\d{5}(?:-\\d{4})?\\b",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "INTERNAL_ONLY",
+      "examples": [
+        "30060",
+        "30060-1234",
+        "90210",
+        "10001-5432",
+        "02134"
+      ],
+      "false_positive_examples": [
+        "1234",
+        "123456",
+        "00000",
+        "12345-123",
+        "12345-12345"
+      ],
+      "regulatory_reference": "HIPAA 45 CFR 164.514(b)(2)(i)(B) (ZIP as quasi-identifier)",
+      "notes": "ZIP codes alone are not typically classified as PII under Georgia law, but HIPAA considers the first 3 digits a quasi-identifier for small populations. Classified INTERNAL_ONLY to flag when combined with other data."
+    },
+    {
+      "id": "us-ip-address-v4",
+      "category": "network",
+      "name": "IPv4 Address",
+      "description": "Standard IPv4 address in dotted decimal notation (X.X.X.X where each octet is 0-255).",
+      "presidio_entity": "IP_ADDRESS",
+      "presidio_recognizer": "IpRecognizer",
+      "regex": "\\b(?:(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)\\b",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "INTERNAL_ONLY",
+      "examples": [
+        "192.168.1.1",
+        "10.0.0.1",
+        "172.16.0.100",
+        "8.8.8.8",
+        "255.255.255.0"
+      ],
+      "false_positive_examples": [
+        "256.1.1.1",
+        "1.2.3.256",
+        "1.2.3",
+        "1.2.3.4.5",
+        "version 1.2.3.4"
+      ],
+      "regulatory_reference": "US: generally not PII alone; EU GDPR Art. 4(1) classifies IP as personal data",
+      "notes": "Presidio primary detector. Classified INTERNAL_ONLY for US-GA because IP addresses alone are generally not PII under US federal law. However, if eu-gdpr locale is active simultaneously, its ASK_FIRST classification overrides (most restrictive wins)."
+    },
+    {
+      "id": "us-ip-address-v6",
+      "category": "network",
+      "name": "IPv6 Address",
+      "description": "IPv6 address in full or abbreviated notation. Includes :: abbreviation for consecutive zero groups.",
+      "presidio_entity": "IP_ADDRESS",
+      "presidio_recognizer": "IpRecognizer",
+      "regex": "\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b|\\b(?:[0-9a-fA-F]{1,4}:){1,7}:\\b|\\b(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}\\b|\\b::(?:[0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "INTERNAL_ONLY",
+      "examples": [
+        "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+        "2001:db8:85a3::8a2e:370:7334",
+        "fe80::1",
+        "::1",
+        "2001:db8::1"
+      ],
+      "false_positive_examples": [
+        "1234:5678",
+        "not:an:ip:addr",
+        "12:34:56:78:90:AB"
+      ],
+      "regulatory_reference": "US: generally not PII alone; EU GDPR Art. 4(1)",
+      "notes": "Presidio handles IPv6 via IpRecognizer. Regex is a simplified fallback that may miss edge cases. Same classification rationale as IPv4."
+    },
+    {
+      "id": "us-mac-address",
+      "category": "network",
+      "name": "MAC Address",
+      "description": "Hardware MAC address in common formats: XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, or XXXX.XXXX.XXXX.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\\b|\\b(?:[0-9A-Fa-f]{4}\\.){2}[0-9A-Fa-f]{4}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "INTERNAL_ONLY",
+      "examples": [
+        "00:1A:2B:3C:4D:5E",
+        "00-1A-2B-3C-4D-5E",
+        "001A.2B3C.4D5E",
+        "AA:BB:CC:DD:EE:FF",
+        "aa:bb:cc:dd:ee:ff"
+      ],
+      "false_positive_examples": [
+        "00:1A:2B:3C:4D",
+        "00:1A:2B:3C:4D:5E:6F",
+        "GG:HH:II:JJ:KK:LL",
+        "12:34:56",
+        "not a mac"
+      ],
+      "regulatory_reference": "CPPA (California, reference); device identifiers may constitute personal data in combination",
+      "notes": "No Presidio built-in recognizer. MAC addresses are device identifiers that can be used for tracking. Classified INTERNAL_ONLY because they are technical infrastructure data but can identify devices."
+    },
+    {
+      "id": "us-dob",
+      "category": "identity",
+      "name": "Date of Birth",
+      "description": "Common US date formats that may represent dates of birth: MM/DD/YYYY, MM-DD-YYYY, Month DD YYYY, and variants.",
+      "presidio_entity": "DATE_TIME",
+      "presidio_recognizer": "DateTimeRecognizer",
+      "regex": "\\b(?:0?[1-9]|1[0-2])[/-](?:0?[1-9]|[12]\\d|3[01])[/-](?:19|20)\\d{2}\\b|\\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\\s+\\d{1,2},?\\s+(?:19|20)\\d{2}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "ASK_FIRST",
+      "examples": [
+        "01/15/1985",
+        "12-25-1990",
+        "3/5/2000",
+        "January 15, 1985",
+        "March 5, 2000",
+        "07/04/1976"
+      ],
+      "false_positive_examples": [
+        "13/25/1990",
+        "00/15/1985",
+        "12/32/1990",
+        "2025-01-15",
+        "15/01/1985",
+        "invoice date 01/15/2026"
+      ],
+      "regulatory_reference": "HIPAA 45 CFR 164.514(b)(2)(i)(C); GA Code 10-1-912",
+      "notes": "Presidio primary detector via DateTimeRecognizer. High false positive rate because any date could match. Scanner should apply context scoring: proximity to keywords like 'born', 'birthday', 'DOB', 'age' increases confidence. ISO format (YYYY-MM-DD) excluded from default regex because it is commonly used for non-DOB dates."
+    },
+    {
+      "id": "us-military-service",
+      "category": "military",
+      "name": "US Military Service Number",
+      "description": "Legacy US military service number format (pre-1969): 1-2 letter prefix followed by 7-8 digits. Largely replaced by SSN but still found in historical records.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b[A-Z]{1,2}\\s?\\d{7,8}\\b",
+      "regex_flags": "gi",
+      "validation": null,
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "RA 12345678",
+        "AF1234567",
+        "US12345678",
+        "ER 1234567"
+      ],
+      "false_positive_examples": [
+        "AB123456",
+        "A1234567890",
+        "ABC12345678",
+        "12345678"
+      ],
+      "regulatory_reference": "5 USC 552a (Privacy Act); 10 USC 1102",
+      "notes": "No Presidio built-in recognizer. Service numbers are historical PII but still protected. Pattern has high false positive rate; context keywords ('service number', 'military', 'veteran') should increase confidence."
+    },
+    {
+      "id": "us-dea-number",
+      "category": "health",
+      "name": "DEA Registration Number",
+      "description": "Drug Enforcement Administration registration number: 2 letters followed by 7 digits. First letter is registrant type (A, B, F, M, P, R), second is first letter of registrant's last name. Check digit is last digit.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b[ABFMPR][A-Z]\\d{7}\\b",
+      "regex_flags": "g",
+      "validation": "dea_check",
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "AB1234563",
+        "FJ1234561",
+        "MR9876544",
+        "BJ3456789"
+      ],
+      "false_positive_examples": [
+        "XX1234567",
+        "AB123456",
+        "AB12345678",
+        "CB1234567",
+        "AB0000000"
+      ],
+      "regulatory_reference": "21 CFR 1301.11; HIPAA (if linked to patient)",
+      "notes": "No Presidio built-in recognizer. DEA check digit: sum odd-position digits + 2x(sum even-position digits), last digit of result must equal check digit (7th digit). NEVER_SHARE because DEA numbers identify prescribers and can be used for prescription fraud."
+    },
+    {
+      "id": "us-medicare",
+      "category": "health",
+      "name": "Medicare Beneficiary Identifier (MBI)",
+      "description": "New Medicare Beneficiary Identifier format (post-2018): 11 characters, pattern C-AN-AN-AANN (where C=1-9, A=uppercase letter excluding S/L/O/I/B/Z, N=0-9).",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b[1-9][A-HJKM-NP-RT-Y][A-HJKM-NP-RT-Y0-9]\\d[A-HJKM-NP-RT-Y][A-HJKM-NP-RT-Y0-9]\\d[A-HJKM-NP-RT-Y]{2}\\d{2}\\b",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "1EG4TE5MK72",
+        "5HA8TY6MN24",
+        "9HG4TE5MK00"
+      ],
+      "false_positive_examples": [
+        "0EG4TE5MK72",
+        "1SG4TE5MK72",
+        "1EG4TE5MK7",
+        "1EG4TE5MK723"
+      ],
+      "regulatory_reference": "42 CFR 422.60; HIPAA 45 CFR 164; Social Security Act 1862(f)",
+      "notes": "New MBI format replaced the old HICN (which contained SSN). The character exclusions (S, L, O, I, B, Z) prevent confusion with digits 5, 1, 0, 1, 8, 2. Legacy HICN detection covered by us-ssn pattern."
+    },
+    {
+      "id": "us-medicaid",
+      "category": "health",
+      "name": "Medicaid ID Number",
+      "description": "State Medicaid ID numbers vary by state. Georgia Medicaid IDs are typically 9-12 digits. Detection relies on contextual cues rather than structural patterns.",
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "regex": "\\b\\d{9,12}\\b",
+      "regex_flags": "g",
+      "validation": null,
+      "default_classification": "NEVER_SHARE",
+      "examples": [
+        "123456789",
+        "1234567890",
+        "12345678901",
+        "123456789012"
+      ],
+      "false_positive_examples": [
+        "12345678",
+        "1234567890123",
+        "ABCDEFGHIJ"
+      ],
+      "regulatory_reference": "HIPAA 45 CFR 164; 42 CFR 431.300; GA Code 49-4-159",
+      "notes": "Extremely high false positive rate due to generic digit pattern. Scanner must rely heavily on context keywords ('Medicaid', 'member ID', 'beneficiary') for confidence scoring. Pattern is deliberately broad and depends on contextual analysis."
+    }
+  ],
+
+  "rules": {
+    "jurisdiction": "United States — State of Georgia",
+    "jurisdiction_code": "US-GA",
+    "inherits_from": null,
+    "override_mode": null,
+
+    "applicable_regulations": [
+      {
+        "name": "Georgia Personal Identity Protection Act",
+        "citation": "GA Code 10-1-910 through 10-1-912",
+        "summary": "Requires notification to residents when personal information is breached. Defines personal information as first name/initial + last name combined with SSN, driver's license, or financial account number."
+      },
+      {
+        "name": "Health Insurance Portability and Accountability Act (HIPAA)",
+        "citation": "42 USC 1320d; 45 CFR 160, 164",
+        "summary": "Federal regulation protecting individually identifiable health information (PHI). Applies when health data is processed."
+      },
+      {
+        "name": "Gramm-Leach-Bliley Act (GLBA)",
+        "citation": "15 USC 6801-6809; Regulation P (12 CFR 1016)",
+        "summary": "Federal regulation requiring financial institutions to protect customer financial information."
+      },
+      {
+        "name": "FTC Act Section 5",
+        "citation": "15 USC 45(a)",
+        "summary": "Prohibits unfair or deceptive acts. FTC has used this to enforce reasonable data security practices."
+      },
+      {
+        "name": "Privacy Act of 1974",
+        "citation": "5 USC 552a",
+        "summary": "Governs collection, use, and dissemination of personal information by federal agencies. Limits use of SSNs."
+      },
+      {
+        "name": "Children's Online Privacy Protection Act (COPPA)",
+        "citation": "15 USC 6501-6506",
+        "summary": "Protects personal information of children under 13. Relevant if agent processes children's data."
+      }
+    ],
+
+    "breach_notification": {
+      "timeline_hours": null,
+      "timeline_description": "In the most expedient time possible and without unreasonable delay, not to exceed 72 hours after determination of breach if notifying state authority",
+      "authority": "Georgia Attorney General's Office, Consumer Protection Division",
+      "authority_url": "https://law.georgia.gov/key-issues/consumer-protection",
+      "individual_notification": true,
+      "individual_threshold": "Breach affecting more than 10,000 Georgia residents requires notification to consumer reporting agencies",
+      "threshold": "Unauthorized acquisition of computerized data that compromises the security, confidentiality, or integrity of personal information. Personal information = first name/initial + last name + (SSN, DL number, or financial account number)",
+      "exemptions": [
+        "Data was encrypted and the encryption key was not compromised",
+        "After investigation, breach is reasonably determined not to cause identity theft or other fraud",
+        "Entity is subject to and compliant with HIPAA or GLBA breach notification procedures"
+      ],
+      "regulatory_reference": "GA Code 10-1-912(b), (c), (d)"
+    },
+
+    "data_subject_rights": {
+      "right_to_access": false,
+      "right_to_erasure": false,
+      "right_to_portability": false,
+      "right_to_rectification": false,
+      "right_to_restrict": false,
+      "right_to_object": false,
+      "notes": "Georgia does not have a comprehensive consumer privacy law with data subject rights (as of February 2026). Rights exist only under sector-specific federal laws (HIPAA right to access health records, FCRA right to dispute credit information).",
+      "regulatory_reference": "N/A — no Georgia state consumer privacy act"
+    },
+
+    "cross_border_transfer": {
+      "restrictions": "none",
+      "adequate_jurisdictions": [],
+      "mechanisms": [],
+      "notes": "US federal law does not generally restrict cross-border data transfer. However, sector-specific regulations (HIPAA, ITAR for defense data) may impose restrictions. GDPR applies to EU data subjects' data regardless of where processing occurs.",
+      "regulatory_reference": "N/A — no general federal restriction"
+    },
+
+    "special_categories": [
+      "Protected Health Information (PHI) under HIPAA",
+      "Financial records under GLBA",
+      "Children's data under COPPA",
+      "Biometric data (no Georgia biometric privacy law, but federal sector-specific protections exist)",
+      "Military service records under Privacy Act"
+    ],
+
+    "retention_defaults": {
+      "government_id": { "days": 1, "note": "Purge immediately after use. SSNs should never be stored longer than necessary for the immediate task." },
+      "financial": { "days": 1, "note": "Purge after transaction completion. Financial account numbers should not persist in agent storage." },
+      "contact": { "days": 90, "note": "Retain for ongoing communication needs. Review quarterly." },
+      "health": { "days": 1, "note": "HIPAA minimum necessary principle. Purge immediately after the health-related task is complete." },
+      "network": { "days": 30, "note": "Technical data. Retain while relevant to active configuration tasks." },
+      "identity": { "days": 30, "note": "DOB and similar. Retain only while relevant to active tasks." },
+      "military": { "days": 1, "note": "Purge immediately after use. Military records are federally protected." },
+      "credential": { "days": 0, "note": "NEVER retain credentials. Use immediately and discard. 0 = immediate purge." },
+      "location": { "days": 7, "note": "Geographic data. Purge after location-dependent task completion." }
+    },
+
+    "enforcement_authority": {
+      "name": "Georgia Attorney General — Consumer Protection Division",
+      "url": "https://law.georgia.gov/key-issues/consumer-protection",
+      "phone": "404-651-8600",
+      "address": "40 Capitol Square SW, Atlanta, GA 30334"
+    }
+  },
+
+  "crypto": {
+    "algorithm": "AES-256-GCM",
+    "key_derivation": "argon2id",
+    "kdf_parameters": {
+      "memory_cost": 65536,
+      "time_cost": 3,
+      "parallelism": 4
+    },
+    "minimum_key_length_bits": 256,
+    "key_escrow": "prohibited",
+    "key_rotation_period_days": 365,
+    "approved_implementations": [
+      "node:crypto (Node.js built-in)",
+      "sodium-native (libsodium bindings)",
+      "argon2 (npm package for KDF)",
+      "OpenSSL 3.x (system library)"
+    ],
+    "hash_algorithm": "SHA-256",
+    "regulatory_notes": "Georgia Code 10-1-912(b)(2) exempts encrypted data from breach notification requirements if the encryption key has not been accessed or acquired. This provides a strong incentive for encryption at rest. No federal encryption backdoor mandate exists (as of 2026). No state-level key escrow requirement.",
+    "regulatory_reference": "GA Code 10-1-912(b)(2); NIST SP 800-38D (GCM); NIST SP 800-63B (Argon2)"
+  }
+}

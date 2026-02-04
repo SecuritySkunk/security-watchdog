@@ -1,0 +1,155 @@
+{
+  "$schema": "locale-definition",
+  "locale_id": "REPLACE_WITH_LOCALE_ID",
+  "version": "0.1.0",
+  "display_name": "REPLACE — Jurisdiction Name",
+  "description": "Brief description of what this locale covers, which laws it references, and any jurisdiction-specific notes.",
+
+  "_instructions": {
+    "how_to_use": "Copy this _template directory to a new directory named with your locale ID (e.g., 'gb', 'ch', 'eu-gdpr'). Replace all REPLACE_ prefixed values. Remove this _instructions block before finalizing. Run 'openclaw security locale validate <locale-id>' to verify.",
+    "naming_convention": "Locale IDs use lowercase country code, optionally followed by hyphen and subdivision: us-ga, gb, ch, eu-gdpr, de",
+    "pattern_id_convention": "Pattern IDs are prefixed with country code and use hyphens: us-ssn, gb-nino, ch-ahv",
+    "presidio_first": "Always check if Presidio has a built-in recognizer before writing custom regex. See: https://microsoft.github.io/presidio/supported_entities/",
+    "synthetic_data_only": "ALL examples must be synthetic. Never include real PII in locale files.",
+    "regulatory_references": "Every pattern and rule must cite the specific law or regulation. Include section numbers."
+  },
+
+  "patterns": [
+    {
+      "id": "REPLACE-example-pattern",
+      "category": "government_id",
+      "name": "REPLACE: Pattern Display Name",
+      "description": "REPLACE: Detailed description of what this pattern detects, including format details and common variations.",
+
+      "presidio_entity": null,
+      "presidio_recognizer": null,
+      "_presidio_note": "Set presidio_entity to the Presidio entity type if available (e.g., 'US_SSN', 'CREDIT_CARD', 'EMAIL_ADDRESS'). Set presidio_recognizer to the class name (e.g., 'UsSsnRecognizer'). If Presidio has no recognizer for this PII type, leave both as null and provide a regex.",
+
+      "regex": "REPLACE_WITH_REGEX_PATTERN",
+      "regex_flags": "gi",
+      "_regex_note": "Regular expression for this PII type. Required when presidio_entity is null. Use as fallback when Presidio is available. Test extensively against examples and false_positive_examples.",
+
+      "validation": null,
+      "_validation_note": "Name of a validation function to run after regex match. Available functions: luhn (credit cards), ssn_area_check (US SSN), aba_routing_check (US routing), dea_check (DEA numbers), ga_dl_format (GA DL), iban_check (IBAN), nhs_check (UK NHS). Set null if no additional validation needed.",
+
+      "default_classification": "NEVER_SHARE",
+      "_classification_note": "One of: NEVER_SHARE (must never leave system), ASK_FIRST (user approval per instance), INTERNAL_ONLY (stay local but not critical), PUBLIC (no restrictions). Choose based on the severity of exposure for this data type in your jurisdiction.",
+
+      "examples": [
+        "REPLACE_EXAMPLE_1",
+        "REPLACE_EXAMPLE_2",
+        "REPLACE_EXAMPLE_3"
+      ],
+      "_examples_note": "At least 3 synthetic strings that SHOULD match this pattern. Cover common format variations (with/without separators, different valid prefixes, etc.).",
+
+      "false_positive_examples": [
+        "REPLACE_FALSE_POS_1",
+        "REPLACE_FALSE_POS_2",
+        "REPLACE_FALSE_POS_3"
+      ],
+      "_false_positive_note": "At least 3 strings that look similar but SHOULD NOT match. Include: numbers in wrong range, wrong length, failed check digits, strings that are commonly confused with this PII type.",
+
+      "regulatory_reference": "REPLACE: Citation to the specific law or regulation (e.g., 'GA Code 10-1-912(a)(6)')",
+      "notes": "REPLACE: Any implementation notes, known limitations, or special handling instructions. Remove if not needed."
+    }
+  ],
+
+  "_patterns_note": "Add one object per PII type relevant to your jurisdiction. Common categories: government_id (SSN, national ID, passport, DL), financial (credit card, bank account, routing number), contact (email, phone, address), health (insurance IDs, DEA), network (IP, MAC), identity (DOB), military (service numbers), credential (API keys), biometric, location.",
+
+  "rules": {
+    "jurisdiction": "REPLACE: Full Legal Jurisdiction Name",
+    "jurisdiction_code": "REPLACE: ISO 3166 Code (e.g., US-GA, GB, CH)",
+    "inherits_from": null,
+    "override_mode": null,
+    "_inheritance_note": "Set inherits_from to another locale ID to inherit its patterns (e.g., 'eu-gdpr'). Set override_mode to 'merge' (add patterns to parent's) or 'replace' (replace parent's categories you redefine). Leave both null for standalone locales.",
+
+    "applicable_regulations": [
+      {
+        "name": "REPLACE: Regulation Name",
+        "citation": "REPLACE: Legal Citation (e.g., 'GDPR Art. 4(1)')",
+        "summary": "REPLACE: Brief summary of what this regulation requires regarding personal data protection."
+      }
+    ],
+
+    "breach_notification": {
+      "timeline_hours": null,
+      "timeline_description": "REPLACE: Description of notification timeline (e.g., '72 hours after becoming aware' for GDPR, 'without unreasonable delay' for GA)",
+      "authority": "REPLACE: Name of the regulatory authority to notify",
+      "authority_url": "REPLACE: URL for notification procedure",
+      "individual_notification": true,
+      "individual_threshold": "REPLACE: When individual notification is required (e.g., number of affected individuals)",
+      "threshold": "REPLACE: What constitutes a reportable breach in this jurisdiction",
+      "exemptions": [
+        "REPLACE: Condition under which notification is NOT required (e.g., 'data was encrypted')"
+      ],
+      "regulatory_reference": "REPLACE: Legal citation for breach notification requirements"
+    },
+
+    "data_subject_rights": {
+      "right_to_access": false,
+      "right_to_erasure": false,
+      "right_to_portability": false,
+      "right_to_rectification": false,
+      "right_to_restrict": false,
+      "right_to_object": false,
+      "_rights_note": "Set each to true if the jurisdiction grants this right to individuals. For EU/GDPR locales, most will be true. For US states without comprehensive privacy laws, most will be false.",
+      "notes": "REPLACE: Additional context about data subject rights in this jurisdiction.",
+      "regulatory_reference": "REPLACE: Legal citation for data subject rights"
+    },
+
+    "cross_border_transfer": {
+      "restrictions": "none",
+      "_restrictions_note": "One of: none, adequacy_required, consent_required, prohibited. EU/GDPR = adequacy_required. US = generally none.",
+      "adequate_jurisdictions": [],
+      "mechanisms": [],
+      "notes": "REPLACE: Description of cross-border data transfer rules.",
+      "regulatory_reference": "REPLACE: Legal citation"
+    },
+
+    "special_categories": [
+      "REPLACE: Data types requiring extra protection (e.g., 'Health data under HIPAA', 'Biometric data', 'Racial or ethnic origin under GDPR Art. 9')"
+    ],
+
+    "retention_defaults": {
+      "government_id": { "days": 1, "note": "REPLACE: Retention guidance for government IDs" },
+      "financial": { "days": 1, "note": "REPLACE: Retention guidance for financial data" },
+      "contact": { "days": 90, "note": "REPLACE: Retention guidance for contact info" },
+      "health": { "days": 1, "note": "REPLACE: Retention guidance for health data" },
+      "network": { "days": 30, "note": "REPLACE: Retention guidance for network identifiers" },
+      "identity": { "days": 30, "note": "REPLACE: Retention guidance for identity data" },
+      "military": { "days": 1, "note": "REPLACE: Retention guidance for military records" },
+      "credential": { "days": 0, "note": "Never retain credentials. 0 = immediate purge." },
+      "location": { "days": 7, "note": "REPLACE: Retention guidance for location data" }
+    },
+    "_retention_note": "Days value is the maximum recommended retention. 0 = never retain (immediate purge). These are advisory defaults used by the Posture Engine for lifecycle alerts.",
+
+    "enforcement_authority": {
+      "name": "REPLACE: Regulatory Authority Name",
+      "url": "REPLACE: Authority website URL",
+      "phone": "REPLACE: Contact phone",
+      "address": "REPLACE: Mailing address"
+    }
+  },
+
+  "crypto": {
+    "algorithm": "AES-256-GCM",
+    "key_derivation": "argon2id",
+    "kdf_parameters": {
+      "memory_cost": 65536,
+      "time_cost": 3,
+      "parallelism": 4
+    },
+    "minimum_key_length_bits": 256,
+    "key_escrow": "prohibited",
+    "_key_escrow_note": "One of: required, optional, prohibited. Most jurisdictions = prohibited. UK (IPA) and Australia (AA Act) = optional. Research your jurisdiction's stance on compelled decryption.",
+    "key_rotation_period_days": 365,
+    "approved_implementations": [
+      "node:crypto (Node.js built-in)",
+      "sodium-native (libsodium bindings)",
+      "argon2 (npm package for KDF)"
+    ],
+    "hash_algorithm": "SHA-256",
+    "regulatory_notes": "REPLACE: Jurisdiction-specific encryption requirements, exemptions, or incentives. For example, some jurisdictions exempt encrypted data from breach notification.",
+    "regulatory_reference": "REPLACE: Legal citation for encryption requirements"
+  }
+}

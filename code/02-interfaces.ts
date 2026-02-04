@@ -1,0 +1,967 @@
+/**
+ * Security Watchdog — Shared Interface Types
+ * 
+ * Document ID:  SWDOG-IFACE-002
+ * Version:      1.0 DRAFT
+ * Generated:    February 2026
+ * 
+ * This file defines all TypeScript types shared across watchdog components.
+ * Every inter-component contract references types in this file.
+ * Install: npm install better-sqlite3 (runtime); types are structural only.
+ * 
+ * ────────────────────────────────────────────────────────────────
+ * USAGE:  Import from the shared package:
+ *         import type { ScanRequest, ScanResult, ... } from '@watchdog/types';
+ * ────────────────────────────────────────────────────────────────
+ */
+
+// ═══════════════════════════════════════════════════════════════
+// ENUMERATIONS
+// ═══════════════════════════════════════════════════════════════
+
+/** Classification level assigned to sensitive data entries. */
+export enum ClassificationLevel {
+  /** Must never leave the local system under any circumstances. */
+  NEVER_SHARE = "NEVER_SHARE",
+  /** May be shared only with explicit per-instance user approval. */
+  ASK_FIRST = "ASK_FIRST",
+  /** May exist locally but should not reach external services. */
+  INTERNAL_ONLY = "INTERNAL_ONLY",
+  /** No sensitivity restrictions. */
+  PUBLIC = "PUBLIC",
+}
+
+/** Scanner verdict for a scanned payload. */
+export enum ScanVerdict {
+  /** No sensitive data detected; payload may proceed. */
+  CLEAN = "CLEAN",
+  /** Sensitive data detected; payload quarantined for review. */
+  FLAGGED = "FLAGGED",
+}
+
+/** Security Agent classification decision. */
+export enum AgentDecision {
+  /** Scanner flag was a false positive; release the payload. */
+  FALSE_POSITIVE = "FALSE_POSITIVE",
+  /** Confirmed sensitive data; block transmission. */
+  BLOCK = "BLOCK",
+  /** Uncertain; escalate to human for approval. */
+  ESCALATE = "ESCALATE",
+}
+
+/** Human escalation response codes. */
+export enum EscalationResponse {
+  /** Approve this specific transmission. */
+  APPROVE = "APPROVE",
+  /** Deny this specific transmission. */
+  DENY = "DENY",
+  /** Deny and add the flagged content to the registry as NEVER_SHARE. */
+  DENY_AND_ADD = "DENY_AND_ADD",
+  /** No response received within timeout window. Treated as DENY. */
+  TIMEOUT = "TIMEOUT",
+}
+
+/** Dynamic security posture levels. */
+export enum PostureLevel {
+  /** No sensitive data in inventory. Regex-only scanning. */
+  GREEN = "GREEN",
+  /** ASK_FIRST / INTERNAL_ONLY data present. Fuzzy matching active. */
+  YELLOW = "YELLOW",
+  /** NEVER_SHARE data present. Full scrutiny, lower escalation threshold. */
+  RED = "RED",
+  /** Manual override. All outbound external communication blocked. */
+  BLACK = "BLACK",
+}
+
+/** Destination type for outbound tool calls. */
+export enum DestinationType {
+  /** Publicly visible platform (Moltbook, social media, public API). */
+  PUBLIC_PLATFORM = "PUBLIC_PLATFORM",
+  /** Private messaging channel (WhatsApp DM, Telegram, Signal, email). */
+  PRIVATE_CHANNEL = "PRIVATE_CHANNEL",
+  /** Local filesystem operation (file write, database). */
+  LOCAL_FILE = "LOCAL_FILE",
+  /** Communication back to the owner only. */
+  OWNER_ONLY = "OWNER_ONLY",
+  /** API call to a third-party service. */
+  API_CALL = "API_CALL",
+  /** Unknown or unclassified destination. */
+  UNKNOWN = "UNKNOWN",
+}
+
+/** Component health status. */
+export enum HealthStatus {
+  HEALTHY = "HEALTHY",
+  DEGRADED = "DEGRADED",
+  UNHEALTHY = "UNHEALTHY",
+  UNREACHABLE = "UNREACHABLE",
+}
+
+/** System operating mode. */
+export enum SystemMode {
+  /** Normal operation. All layers active. */
+  NORMAL = "NORMAL",
+  /** One or more components failed. Outbound traffic queued. */
+  ISOLATION = "ISOLATION",
+  /** Manual BLACK posture. All outbound blocked. */
+  LOCKDOWN = "LOCKDOWN",
+}
+
+/** Direction of content flow being scanned. */
+export enum ScanDirection {
+  /** Content leaving the system to external services. */
+  OUTBOUND = "OUTBOUND",
+  /** Content entering the system from external sources. */
+  INBOUND = "INBOUND",
+}
+
+/** Storage form of sensitive data in inventory. */
+export enum DataForm {
+  /** Exact original text. */
+  VERBATIM = "VERBATIM",
+  /** Reworded but semantically equivalent. */
+  PARAPHRASED = "PARAPHRASED",
+  /** Computed or inferred from sensitive data. */
+  DERIVED = "DERIVED",
+}
+
+/** Type of PII flag source. */
+export enum FlagSource {
+  /** Structural pattern match (Presidio / detect-secrets). */
+  STRUCTURAL = "STRUCTURAL",
+  /** Exact match against registry entry. */
+  EXACT_MATCH = "EXACT_MATCH",
+  /** Fuzzy match against registry entry (fuse.js). */
+  FUZZY_MATCH = "FUZZY_MATCH",
+  /** Credential pattern (detect-secrets). */
+  CREDENTIAL = "CREDENTIAL",
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-001: GATEWAY → SCANNER (OUTBOUND INTERCEPT)
+// ═══════════════════════════════════════════════════════════════
+
+/** Payload from gateway hook when an outbound tool call is intercepted. */
+export interface OutboundScanRequest {
+  /** Unique ID for this scan request, generated by the gateway hook. */
+  requestId: string;
+  /** ISO 8601 timestamp of interception. */
+  timestamp: string;
+  /** The session ID from which the tool call originated. */
+  sessionId: string;
+  /** The agent ID that issued the tool call. */
+  agentId: string;
+  /** Direction is always OUTBOUND for this interface. */
+  direction: ScanDirection.OUTBOUND;
+  /** The tool being called (e.g., "web_fetch", "exec", "whatsapp_send"). */
+  toolName: string;
+  /** The full tool call arguments as passed by the agent. */
+  toolArgs: Record<string, unknown>;
+  /** The text content to scan, extracted from tool args. */
+  content: string;
+  /** Classified destination for this tool call. */
+  destination: DestinationInfo;
+  /** Current system posture at time of scan. */
+  currentPosture: PostureLevel;
+}
+
+/** Destination metadata for the tool call target. */
+export interface DestinationInfo {
+  /** Classified destination type. */
+  type: DestinationType;
+  /** Specific target (URL, channel name, file path, etc.). */
+  target: string;
+  /** Human-readable label for the destination. */
+  label: string;
+  /** Whether this destination is known to be publicly visible. */
+  isPublic: boolean;
+}
+
+/** Result of outbound scan from Scanner. */
+export interface OutboundScanResult {
+  /** Echoed from the request. */
+  requestId: string;
+  /** ISO 8601 timestamp of scan completion. */
+  timestamp: string;
+  /** Overall verdict. */
+  verdict: ScanVerdict;
+  /** Approval token if CLEAN. Null if FLAGGED. */
+  approvalToken: string | null;
+  /** List of flags raised during scanning. Empty if CLEAN. */
+  flags: ScanFlag[];
+  /** Time taken for the scan in milliseconds. */
+  scanDurationMs: number;
+  /** Which scan stages were executed. */
+  stagesExecuted: ScanStage[];
+  /** If FLAGGED: unique quarantine ID for tracking. */
+  quarantineId: string | null;
+}
+
+/** Individual flag raised during scanning. */
+export interface ScanFlag {
+  /** Unique ID for this flag. */
+  flagId: string;
+  /** What raised this flag. */
+  source: FlagSource;
+  /** The entity type detected (e.g., "US_SSN", "CREDIT_CARD", "user:family_count"). */
+  entityType: string;
+  /** The matched text (redacted for logging; full text in quarantine only). */
+  matchedText: string;
+  /** Confidence score 0.0–1.0. Presidio score for structural; fuse.js score for fuzzy. */
+  confidence: number;
+  /** Start character offset in the scanned content. */
+  offsetStart: number;
+  /** End character offset in the scanned content. */
+  offsetEnd: number;
+  /** Classification level from the registry entry, if matched. */
+  classificationLevel: ClassificationLevel | null;
+  /** Registry entry ID, if this flag matched a registry entry. */
+  registryEntryId: string | null;
+}
+
+/** Record of a scan stage execution. */
+export interface ScanStage {
+  /** Stage name. */
+  name: "presidio" | "detect_secrets" | "fuzzy_match" | "destination_classify";
+  /** Whether the stage was executed (may be skipped based on posture). */
+  executed: boolean;
+  /** Duration in milliseconds. */
+  durationMs: number;
+  /** Number of flags raised by this stage. */
+  flagCount: number;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-002: GATEWAY → SCANNER (INBOUND INSPECTION)
+// ═══════════════════════════════════════════════════════════════
+
+/** Payload from gateway hook when inbound content arrives. */
+export interface InboundInspectionRequest {
+  /** Unique ID for this inspection request. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** Session ID the content is entering. */
+  sessionId: string;
+  /** Agent ID receiving the content. */
+  agentId: string;
+  /** Direction is always INBOUND for this interface. */
+  direction: ScanDirection.INBOUND;
+  /** Source channel (e.g., "whatsapp", "telegram", "web_fetch"). */
+  sourceChannel: string;
+  /** Source identifier (sender phone, URL, file path). */
+  sourceId: string;
+  /** The text content to inspect. */
+  content: string;
+  /** Current system posture at time of inspection. */
+  currentPosture: PostureLevel;
+}
+
+/** Result of inbound inspection. Never blocks; logs and adjusts posture. */
+export interface InboundInspectionResult {
+  /** Echoed from the request. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** Sensitive data items detected and logged to inventory. */
+  inventoryUpdates: InventoryEntry[];
+  /** Recommended posture adjustment, if any. */
+  postureRecommendation: PostureLevel | null;
+  /** Time taken in milliseconds. */
+  scanDurationMs: number;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-003: SCANNER → PRESIDIO SERVICE (PII DETECTION)
+// ═══════════════════════════════════════════════════════════════
+
+/** Request to the Presidio HTTP microservice. */
+export interface PresidioAnalyzeRequest {
+  /** The text to analyze for PII. */
+  text: string;
+  /** Language code (default "en"). */
+  language: string;
+  /** Specific entity types to scan for. Empty = all configured. */
+  entities?: string[];
+  /** Minimum confidence score threshold (0.0–1.0). Default 0.35. */
+  scoreThreshold?: number;
+  /** Locale ID to determine which recognizers are active. */
+  localeId?: string;
+}
+
+/** Response from the Presidio microservice. */
+export interface PresidioAnalyzeResponse {
+  /** List of detected PII entities. */
+  results: PresidioEntity[];
+  /** Time taken for analysis in milliseconds. */
+  analysisTimeMs: number;
+}
+
+/** A single PII entity detected by Presidio. */
+export interface PresidioEntity {
+  /** Entity type (e.g., "US_SSN", "CREDIT_CARD", "EMAIL_ADDRESS"). */
+  entityType: string;
+  /** Start character offset. */
+  start: number;
+  /** End character offset. */
+  end: number;
+  /** Confidence score 0.0–1.0. */
+  score: number;
+  /** The name of the recognizer that detected this entity. */
+  recognizerName: string;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-004: SCANNER → REGISTRY (DATABASE ACCESS)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Registry access is via direct SQLite calls (better-sqlite3),
+ * not HTTP. These types define the logical data structures
+ * the Scanner reads/writes, matching the database schema.
+ */
+
+/** A pattern definition in the registry. */
+export interface PatternDefinition {
+  /** Auto-incremented pattern ID. */
+  id: number;
+  /** Locale this pattern belongs to (e.g., "us-ga"). */
+  localeId: string;
+  /** Category (e.g., "government_id", "financial", "contact"). */
+  category: string;
+  /** Specific type (e.g., "ssn", "credit_card_visa"). */
+  patternType: string;
+  /** Presidio recognizer name, if applicable. */
+  presidioRecognizer: string | null;
+  /** Regex pattern string (used by detect-secrets or custom matching). */
+  regexPattern: string | null;
+  /** Default classification level for matches. */
+  defaultClassification: ClassificationLevel;
+  /** Whether this pattern is currently active. */
+  isActive: boolean;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+  /** ISO 8601 last modification timestamp. */
+  updatedAt: string;
+}
+
+/** A user-defined sensitive data entry. */
+export interface UserDefinedEntry {
+  /** Auto-incremented entry ID. */
+  id: number;
+  /** Human-readable label (e.g., "family_count", "network_technology"). */
+  label: string;
+  /** Primary text value to match. */
+  primaryValue: string;
+  /** Classification level. */
+  classification: ClassificationLevel;
+  /** Category for grouping (e.g., "family", "technology", "financial"). */
+  category: string;
+  /** Free-text notes for the user. */
+  notes: string | null;
+  /** Whether this entry is currently active. */
+  isActive: boolean;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+  /** ISO 8601 last modification timestamp. */
+  updatedAt: string;
+}
+
+/** A variant/synonym for a user-defined entry (for fuzzy matching). */
+export interface EntryVariant {
+  /** Auto-incremented variant ID. */
+  id: number;
+  /** Foreign key to UserDefinedEntry. */
+  entryId: number;
+  /** The variant text (e.g., "6 kids", "six children"). */
+  variantText: string;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+}
+
+/** A destination-specific rule overriding the entry's default classification. */
+export interface DestinationRule {
+  /** Auto-incremented rule ID. */
+  id: number;
+  /** Foreign key to UserDefinedEntry. */
+  entryId: number;
+  /** Destination type this rule applies to. */
+  destinationType: DestinationType;
+  /** Optional specific target pattern (regex). Null = all of this type. */
+  targetPattern: string | null;
+  /** Overridden classification for this destination. */
+  overrideClassification: ClassificationLevel;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+}
+
+/** A live inventory entry tracking sensitive data in the system. */
+export interface InventoryEntry {
+  /** Auto-incremented inventory item ID. */
+  id: number;
+  /** Reference to the pattern or user entry that identified this data. */
+  registryRef: RegistryReference;
+  /** Where this data is stored (file path, session ID, memory key). */
+  storageLocation: string;
+  /** Storage type. */
+  storageType: "file" | "session" | "memory" | "context";
+  /** How the data appears in this location. */
+  form: DataForm;
+  /** When this data was first detected at this location. */
+  detectedAt: string;
+  /** The scan request that detected it. */
+  detectedBy: string;
+  /** Current classification level (may be overridden from source). */
+  currentClassification: ClassificationLevel;
+  /** Whether this entry is still considered active/present. */
+  isActive: boolean;
+  /** ISO 8601 timestamp of last verification scan. */
+  lastVerifiedAt: string;
+}
+
+/** Reference to the registry source of an inventory item. */
+export interface RegistryReference {
+  /** "pattern" or "user_entry". */
+  type: "pattern" | "user_entry";
+  /** The ID of the pattern or user entry. */
+  id: number;
+  /** The entity type or label. */
+  label: string;
+}
+
+/** A scan decision record for the audit log. */
+export interface ScanDecisionRecord {
+  /** Auto-incremented decision ID. */
+  id: number;
+  /** The scan request ID. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** Direction of the scanned content. */
+  direction: ScanDirection;
+  /** Scanner verdict. */
+  scannerVerdict: ScanVerdict;
+  /** Security Agent decision, if invoked. */
+  agentDecision: AgentDecision | null;
+  /** Escalation response, if escalated. */
+  escalationResponse: EscalationResponse | null;
+  /** Final outcome: "transmitted", "blocked", "approved_by_user", "denied_by_user". */
+  finalOutcome: string;
+  /** Destination info for outbound; source info for inbound. */
+  endpoint: string;
+  /** Number of flags. */
+  flagCount: number;
+  /** Summary of flags for display. */
+  flagSummary: string;
+  /** Total processing time in milliseconds. */
+  totalDurationMs: number;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-005: SCANNER → SECURITY AGENT (FLAGGED PAYLOAD)
+// ═══════════════════════════════════════════════════════════════
+
+/** Request to the Security Agent for contextual classification. */
+export interface ClassificationRequest {
+  /** The quarantine ID from the Scanner. */
+  quarantineId: string;
+  /** Original scan request ID. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** The full content that was flagged. */
+  content: string;
+  /** Flags raised by the Scanner with details. */
+  flags: ScanFlag[];
+  /** Destination information. */
+  destination: DestinationInfo;
+  /** Current posture level. */
+  currentPosture: PostureLevel;
+  /** Relevant registry entries for context (labels + classification, NOT the raw values). */
+  registryContext: RegistryContextItem[];
+}
+
+/** Minimal registry context provided to the Security Agent (no raw sensitive values). */
+export interface RegistryContextItem {
+  /** Entry label (e.g., "family_count"). */
+  label: string;
+  /** Category. */
+  category: string;
+  /** Classification level. */
+  classification: ClassificationLevel;
+  /** Whether this is a pattern or user-defined entry. */
+  type: "pattern" | "user_entry";
+}
+
+/** Response from the Security Agent. */
+export interface ClassificationResponse {
+  /** Echoed quarantine ID. */
+  quarantineId: string;
+  /** Echoed request ID. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** The classification decision. */
+  decision: AgentDecision;
+  /** Per-flag decisions (allows partial approval in future versions). */
+  flagDecisions: FlagDecision[];
+  /** Human-readable reasoning (from the LLM, for audit log). */
+  reasoning: string;
+  /** Confidence score 0.0–1.0 (self-reported by prompt design). */
+  confidence: number;
+  /** Processing time in milliseconds. */
+  processingTimeMs: number;
+  /** The Ollama model used. */
+  modelUsed: string;
+}
+
+/** Decision on an individual flag. */
+export interface FlagDecision {
+  /** The flag ID from the scan. */
+  flagId: string;
+  /** Decision for this specific flag. */
+  decision: AgentDecision;
+  /** Reasoning for this flag. */
+  reasoning: string;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-006: SECURITY AGENT → OLLAMA (LLM INFERENCE)
+// ═══════════════════════════════════════════════════════════════
+
+/** Request to Ollama /api/generate endpoint. */
+export interface OllamaGenerateRequest {
+  /** The model name (e.g., "llama3.1:8b-instruct-q4_K_M"). */
+  model: string;
+  /** The full prompt including system instructions and content to classify. */
+  prompt: string;
+  /** System prompt (classification instructions). */
+  system: string;
+  /** Disable streaming for simpler response handling. */
+  stream: false;
+  /** Generation options. */
+  options: OllamaOptions;
+  /** Response format. */
+  format: "json";
+}
+
+/** Ollama generation options for classification tasks. */
+export interface OllamaOptions {
+  /** Temperature. Low for classification (0.1). */
+  temperature: number;
+  /** Max tokens. Classification needs very few (~500). */
+  num_predict: number;
+  /** Top-p sampling. */
+  top_p: number;
+  /** Stop sequences. */
+  stop?: string[];
+}
+
+/** Response from Ollama /api/generate endpoint. */
+export interface OllamaGenerateResponse {
+  /** The model name used. */
+  model: string;
+  /** The generated response text (JSON string to parse). */
+  response: string;
+  /** Whether generation is complete. */
+  done: boolean;
+  /** Total processing duration in nanoseconds. */
+  total_duration: number;
+  /** Model loading duration in nanoseconds. */
+  load_duration: number;
+  /** Prompt evaluation count. */
+  prompt_eval_count: number;
+  /** Token evaluation count. */
+  eval_count: number;
+  /** Token evaluation duration in nanoseconds. */
+  eval_duration: number;
+}
+
+/** The structured JSON the Security Agent expects the LLM to produce. */
+export interface LLMClassificationOutput {
+  /** Overall decision. */
+  decision: "FALSE_POSITIVE" | "BLOCK" | "ESCALATE";
+  /** Per-flag analysis. */
+  flags: Array<{
+    flagId: string;
+    decision: "FALSE_POSITIVE" | "BLOCK" | "ESCALATE";
+    reasoning: string;
+  }>;
+  /** Overall confidence 0.0–1.0. */
+  confidence: number;
+  /** Brief overall reasoning. */
+  reasoning: string;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-007: SECURITY AGENT → ESCALATION INTERFACE (HUMAN APPROVAL)
+// ═══════════════════════════════════════════════════════════════
+
+/** Request from Security Agent to escalate a decision to the user. */
+export interface EscalationRequest {
+  /** Unique escalation ID. */
+  escalationId: string;
+  /** The quarantine ID. */
+  quarantineId: string;
+  /** Original scan request ID. */
+  requestId: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** Human-readable summary of what was flagged. */
+  summary: string;
+  /** The destination that was targeted. */
+  destination: DestinationInfo;
+  /** The flags that triggered escalation. */
+  flags: ScanFlag[];
+  /** The Security Agent's reasoning for escalation. */
+  agentReasoning: string;
+  /** Timeout in seconds (default 900 = 15 minutes). */
+  timeoutSeconds: number;
+  /** Preferred escalation channel (from user config). */
+  preferredChannel: string;
+}
+
+/** Current status of an escalation. */
+export interface EscalationStatus {
+  /** The escalation ID. */
+  escalationId: string;
+  /** Current state. */
+  state: "pending" | "approved" | "denied" | "denied_and_added" | "timed_out" | "cancelled";
+  /** User's response, if received. */
+  response: EscalationResponse | null;
+  /** ISO 8601 timestamp of response, if received. */
+  respondedAt: string | null;
+  /** ISO 8601 timestamp when the escalation expires. */
+  expiresAt: string;
+  /** Whether the escalation is still awaiting response. */
+  isActive: boolean;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-008: ESCALATION INTERFACE → GATEWAY (USER MESSAGING)
+// ═══════════════════════════════════════════════════════════════
+
+/** Message to send to the user via the OpenClaw gateway. */
+export interface EscalationMessage {
+  /** Target channel for the escalation message. */
+  channel: string;
+  /** Target account/peer ID on that channel. */
+  peerId: string;
+  /** The message text to send. */
+  text: string;
+  /** The escalation ID (embedded in reply codes). */
+  escalationId: string;
+  /** Message type for UI rendering hints. */
+  messageType: "escalation_request" | "escalation_reminder" | "block_notification" | "approval_confirmation";
+}
+
+/** User's reply parsed from the messaging channel. */
+export interface EscalationReply {
+  /** The escalation ID extracted from the reply. */
+  escalationId: string;
+  /** The response code parsed from the reply. */
+  response: EscalationResponse;
+  /** The raw reply text from the user. */
+  rawText: string;
+  /** ISO 8601 timestamp of the reply. */
+  timestamp: string;
+  /** Channel the reply came from. */
+  channel: string;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-009: AUDITOR → COMPONENTS (HEALTH MONITORING)
+// ═══════════════════════════════════════════════════════════════
+
+/** Standardized health check response from any watchdog component. */
+export interface HealthCheckResponse {
+  /** Component name. */
+  component: string;
+  /** Current health status. */
+  status: HealthStatus;
+  /** ISO 8601 timestamp of this health check. */
+  timestamp: string;
+  /** Uptime in seconds since last restart. */
+  uptimeSeconds: number;
+  /** Component version string. */
+  version: string;
+  /** Component-specific details. */
+  details: Record<string, unknown>;
+  /** Recent error, if any. */
+  lastError: string | null;
+  /** ISO 8601 timestamp of last error, if any. */
+  lastErrorAt: string | null;
+}
+
+/** Health check configuration for a single component. */
+export interface HealthCheckConfig {
+  /** Component name. */
+  component: string;
+  /** HTTP endpoint to ping. */
+  endpoint: string;
+  /** Check interval in seconds. */
+  intervalSeconds: number;
+  /** Timeout for each check in milliseconds. */
+  timeoutMs: number;
+  /** Consecutive failures before triggering isolation. */
+  failureThreshold: number;
+  /** Consecutive successes to recover from degraded. */
+  recoveryThreshold: number;
+}
+
+/** Auditor's aggregate health report. */
+export interface SystemHealthReport {
+  /** ISO 8601 timestamp of this report. */
+  timestamp: string;
+  /** Current system operating mode. */
+  systemMode: SystemMode;
+  /** Current posture level. */
+  postureLevel: PostureLevel;
+  /** Per-component health status. */
+  components: ComponentHealthSummary[];
+  /** Number of payloads currently queued (during isolation). */
+  queuedPayloads: number;
+  /** Uptime of the Auditor daemon itself. */
+  auditorUptimeSeconds: number;
+}
+
+/** Summary health for one component within the system report. */
+export interface ComponentHealthSummary {
+  /** Component name. */
+  component: string;
+  /** Current status. */
+  status: HealthStatus;
+  /** Consecutive check results (last N). */
+  recentChecks: HealthStatus[];
+  /** Last successful check timestamp. */
+  lastSuccessAt: string | null;
+  /** Last failure timestamp. */
+  lastFailureAt: string | null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// IF-010: DASHBOARD → AUDITOR (METRICS & STATUS)
+// ═══════════════════════════════════════════════════════════════
+
+/** Daily metrics aggregated by the Auditor. */
+export interface DailyMetrics {
+  /** Date in YYYY-MM-DD format. */
+  date: string;
+  /** Total outbound scans performed. */
+  outboundScans: number;
+  /** Total inbound inspections performed. */
+  inboundInspections: number;
+  /** Total flags raised. */
+  totalFlags: number;
+  /** Payloads blocked. */
+  blockedCount: number;
+  /** Payloads approved after human escalation. */
+  approvedByHumanCount: number;
+  /** Payloads denied after human escalation. */
+  deniedByHumanCount: number;
+  /** Escalation timeouts (treated as denial). */
+  timeoutCount: number;
+  /** False positives (Security Agent determined not sensitive). */
+  falsePositiveCount: number;
+  /** Clean passes (no flags at all). */
+  cleanPassCount: number;
+  /** Average scan latency in milliseconds. */
+  avgScanLatencyMs: number;
+  /** P95 scan latency in milliseconds. */
+  p95ScanLatencyMs: number;
+  /** Average Security Agent latency in milliseconds (when invoked). */
+  avgAgentLatencyMs: number;
+  /** New inventory items discovered. */
+  newInventoryItems: number;
+  /** Inventory items verified as still present. */
+  inventoryVerified: number;
+  /** Inventory items marked inactive (no longer at location). */
+  inventoryExpired: number;
+}
+
+/** Dashboard summary response combining health and metrics. */
+export interface DashboardSummary {
+  /** Current system health report. */
+  health: SystemHealthReport;
+  /** Metrics for today (partial). */
+  todayMetrics: DailyMetrics;
+  /** Recent scan decisions (last N, configurable). */
+  recentDecisions: ScanDecisionRecord[];
+  /** Current inventory summary by classification level. */
+  inventorySummary: InventorySummary;
+  /** Active escalations awaiting response. */
+  activeEscalations: EscalationStatus[];
+}
+
+/** Summary of current inventory by classification level. */
+export interface InventorySummary {
+  /** Total active inventory items. */
+  totalActive: number;
+  /** Counts by classification level. */
+  byClassification: Record<ClassificationLevel, number>;
+  /** Counts by storage type. */
+  byStorageType: Record<string, number>;
+  /** ISO 8601 timestamp of last workspace scan. */
+  lastWorkspaceScanAt: string | null;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CROSS-CUTTING: ERROR TYPES
+// ═══════════════════════════════════════════════════════════════
+
+/** Standardized error response from any watchdog HTTP endpoint. */
+export interface WatchdogError {
+  /** Machine-readable error code. */
+  code: WatchdogErrorCode;
+  /** Human-readable error message. */
+  message: string;
+  /** Component that generated the error. */
+  component: string;
+  /** ISO 8601 timestamp. */
+  timestamp: string;
+  /** The request ID that caused the error, if applicable. */
+  requestId?: string;
+  /** Additional details for debugging. */
+  details?: Record<string, unknown>;
+}
+
+/** Enumeration of all watchdog error codes. */
+export enum WatchdogErrorCode {
+  // Scanner errors (1xxx)
+  SCAN_TIMEOUT = "SCAN_TIMEOUT",
+  SCAN_INVALID_INPUT = "SCAN_INVALID_INPUT",
+  SCAN_PRESIDIO_UNAVAILABLE = "SCAN_PRESIDIO_UNAVAILABLE",
+  SCAN_REGISTRY_ERROR = "SCAN_REGISTRY_ERROR",
+
+  // Security Agent errors (2xxx)
+  AGENT_TIMEOUT = "AGENT_TIMEOUT",
+  AGENT_OLLAMA_UNAVAILABLE = "AGENT_OLLAMA_UNAVAILABLE",
+  AGENT_PARSE_ERROR = "AGENT_PARSE_ERROR",
+  AGENT_INVALID_RESPONSE = "AGENT_INVALID_RESPONSE",
+
+  // Escalation errors (3xxx)
+  ESCALATION_CHANNEL_ERROR = "ESCALATION_CHANNEL_ERROR",
+  ESCALATION_TIMEOUT = "ESCALATION_TIMEOUT",
+  ESCALATION_PARSE_ERROR = "ESCALATION_PARSE_ERROR",
+  ESCALATION_NOT_FOUND = "ESCALATION_NOT_FOUND",
+
+  // Auditor errors (4xxx)
+  AUDITOR_HEALTH_CHECK_FAILED = "AUDITOR_HEALTH_CHECK_FAILED",
+  AUDITOR_WORKSPACE_SCAN_ERROR = "AUDITOR_WORKSPACE_SCAN_ERROR",
+  AUDITOR_METRICS_ERROR = "AUDITOR_METRICS_ERROR",
+
+  // Registry errors (5xxx)
+  REGISTRY_CONNECTION_ERROR = "REGISTRY_CONNECTION_ERROR",
+  REGISTRY_QUERY_ERROR = "REGISTRY_QUERY_ERROR",
+  REGISTRY_CONSTRAINT_VIOLATION = "REGISTRY_CONSTRAINT_VIOLATION",
+  REGISTRY_NOT_FOUND = "REGISTRY_NOT_FOUND",
+
+  // General errors (9xxx)
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+  CONFIGURATION_ERROR = "CONFIGURATION_ERROR",
+  ISOLATION_MODE_ACTIVE = "ISOLATION_MODE_ACTIVE",
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CROSS-CUTTING: CONFIGURATION
+// ═══════════════════════════════════════════════════════════════
+
+/** Top-level watchdog configuration (stored in ~/.openclaw/security/config.json). */
+export interface WatchdogConfig {
+  /** Configuration schema version. */
+  version: string;
+  /** Active locale IDs (e.g., ["us-ga"]). */
+  activeLocales: string[];
+  /** Scanner configuration. */
+  scanner: ScannerConfig;
+  /** Security Agent configuration. */
+  securityAgent: SecurityAgentConfig;
+  /** Auditor configuration. */
+  auditor: AuditorConfig;
+  /** Escalation configuration. */
+  escalation: EscalationConfig;
+  /** Posture engine configuration. */
+  posture: PostureConfig;
+  /** Dashboard configuration. */
+  dashboard: DashboardConfig;
+}
+
+export interface ScannerConfig {
+  /** Presidio service URL. */
+  presidioUrl: string;
+  /** Minimum Presidio confidence score to flag (0.0–1.0). */
+  presidioMinScore: number;
+  /** fuse.js threshold (0.0 = exact match, 1.0 = match anything). */
+  fuseThreshold: number;
+  /** Maximum scan time before timeout in milliseconds. */
+  timeoutMs: number;
+  /** Whether to scan inbound content (can be disabled). */
+  inboundScanEnabled: boolean;
+}
+
+export interface SecurityAgentConfig {
+  /** Security Agent service URL. */
+  agentUrl: string;
+  /** Ollama model name. */
+  ollamaModel: string;
+  /** Ollama base URL. */
+  ollamaUrl: string;
+  /** Maximum classification time before timeout. */
+  timeoutMs: number;
+  /** Temperature for classification. */
+  temperature: number;
+}
+
+export interface AuditorConfig {
+  /** Health check interval in seconds. */
+  healthCheckIntervalSeconds: number;
+  /** Workspace scan interval in seconds. */
+  workspaceScanIntervalSeconds: number;
+  /** Consecutive failures before isolation. */
+  isolationThreshold: number;
+  /** Maximum decision log entries to retain. */
+  maxLogEntries: number;
+}
+
+export interface EscalationConfig {
+  /** Default timeout in seconds. */
+  defaultTimeoutSeconds: number;
+  /** Preferred channel for escalation messages. */
+  preferredChannel: string;
+  /** Peer ID (phone number, username) to send escalations to. */
+  peerId: string;
+  /** Whether to send reminders before timeout. */
+  sendReminders: boolean;
+  /** Reminder interval in seconds. */
+  reminderIntervalSeconds: number;
+}
+
+export interface PostureConfig {
+  /** Whether posture engine is enabled. */
+  enabled: boolean;
+  /** Automatic posture adjustment based on inventory. */
+  autoAdjust: boolean;
+  /** Manual posture override (null = automatic). */
+  manualOverride: PostureLevel | null;
+}
+
+export interface DashboardConfig {
+  /** Dashboard HTTP port (localhost only). */
+  port: number;
+  /** Number of recent decisions to display. */
+  recentDecisionCount: number;
+  /** Metrics retention in days. */
+  metricsRetentionDays: number;
+}
