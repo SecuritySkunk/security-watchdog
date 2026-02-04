@@ -1,0 +1,67 @@
+Create `registry-manager.ts` - the main public API facade for the Registry module.
+
+## Requirements
+
+1. **Constructor**
+   - Takes a Database instance
+   - Instantiates PatternRepository, EntryRepository, and InventoryRepository internally
+
+2. **Pattern Methods** (delegate to PatternRepository)
+   - createPattern(input: CreatePatternInput): PatternDefinition
+   - getPattern(id: number): PatternDefinition | null
+   - updatePattern(id: number, input: UpdatePatternInput): PatternDefinition
+   - deletePattern(id: number): void
+   - listPatterns(filter?: PatternQueryFilter): PatternDefinition[]
+   - getPatternsByLocale(localeId: string): PatternDefinition[]
+   - getActivePatterns(): PatternDefinition[]
+
+3. **Entry Methods** (delegate to EntryRepository)
+   - createEntry(input: CreateEntryInput): UserDefinedEntry
+   - getEntry(id: number): UserDefinedEntry | null
+   - getEntryByLabel(label: string): UserDefinedEntry | null
+   - updateEntry(id: number, input: UpdateEntryInput): UserDefinedEntry
+   - deleteEntry(id: number): void
+   - listEntries(filter?: EntryQueryFilter): UserDefinedEntry[]
+   - addVariant(entryId: number, variantText: string): EntryVariant
+   - removeVariant(variantId: number): void
+   - getVariants(entryId: number): EntryVariant[]
+   - searchEntries(keyword: string): UserDefinedEntry[]
+
+4. **Inventory Methods** (delegate to InventoryRepository)
+   - recordDetection(input: CreateInventoryInput): InventoryEntry
+   - getInventoryEntry(id: number): InventoryEntry | null
+   - updateInventoryEntry(id: number, input: UpdateInventoryInput): InventoryEntry
+   - deactivateInventoryEntry(id: number, deactivatedBy: string): void
+   - listInventory(filter?: InventoryQueryFilter): InventoryEntry[]
+   - getInventoryStats(): InventoryStats
+   - getPostureInput(): { neverShareCount, askFirstCount, internalOnlyCount, totalActive }
+
+5. **Bulk Operations**
+   - importLocale(localeData: object): { patternsImported: number }
+   - exportLocale(localeId: string): object
+   - bulkCreateEntries(entries: CreateEntryInput[]): UserDefinedEntry[]
+   - clearInventoryByLocation(storageLocation: string): number
+
+6. **Health/Utility**
+   - getHealth(): { ok: boolean; patternCount: number; entryCount: number; inventoryCount: number }
+   - close(): void (closes database connection)
+
+## Imports
+```typescript
+import { Database } from '../shared/database.js';
+import { PatternRepository } from './pattern-repository.js';
+import { EntryRepository } from './entry-repository.js';
+import { InventoryRepository } from './inventory-repository.js';
+import type {
+  PatternDefinition, CreatePatternInput, UpdatePatternInput, PatternQueryFilter,
+  UserDefinedEntry, EntryVariant, CreateEntryInput, UpdateEntryInput, EntryQueryFilter,
+  InventoryEntry, CreateInventoryInput, UpdateInventoryInput, InventoryQueryFilter, InventoryStats,
+} from './types.js';
+import { RegistryError, RegistryErrorCode } from './types.js';
+```
+
+## Style
+- Clean delegation pattern
+- Wrap repository calls in try/catch, convert to RegistryError where appropriate
+- JSDoc comments on all public methods
+- Export the class as default and named export
