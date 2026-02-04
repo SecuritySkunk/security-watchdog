@@ -22,8 +22,7 @@ const TEST_DB_PATH = '/tmp/watchdog-e2e-test.db';
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// TODO: Fix database initialization issue
-describe.skip('E2E Pipeline Integration', () => {
+describe('E2E Pipeline Integration', () => {
   let registry: RegistryManager;
   let scanner: PatternScanner;
   let agent: SecurityAgent;
@@ -161,7 +160,7 @@ describe.skip('E2E Pipeline Integration', () => {
       category: 'credential',
     });
 
-    scanner = new PatternScanner(registry);
+    scanner = new PatternScanner({ databasePath: TEST_DB_PATH });
     agent = new SecurityAgent({
       enabled: true,
       ollamaUrl: 'http://localhost:11434/v1',
@@ -312,13 +311,14 @@ describe.skip('E2E Pipeline Integration', () => {
   // ─── Layer 3: GatewayHook Tests ─────────────────────────────
 
   describe('Layer 3: GatewayHook', () => {
-    it('should block NEVER_SHARE content in standard posture', () => {
+    it('should quarantine NEVER_SHARE content in standard posture', () => {
       const result = gateway.scanOutbound({
         content: 'My SSN is 123-45-6789',
         destination: 'email',
       });
 
-      expect(result.action).toBe('block');
+      // Standard posture quarantines NEVER_SHARE (strict would block)
+      expect(result.action).toBe('quarantine');
       expect(result.highestClassification).toBe(ClassificationLevel.NEVER_SHARE);
     });
 
@@ -387,12 +387,12 @@ describe.skip('E2E Pipeline Integration', () => {
       const agentResult = await agent.analyze(scanResult, content);
       expect(agentResult.overallClassification).toBe(ClassificationLevel.NEVER_SHARE);
 
-      // Layer 3: Gateway decision
+      // Layer 3: Gateway decision (standard posture quarantines NEVER_SHARE)
       const gatewayResult = gateway.scanOutbound({
         content,
         destination: 'email',
       });
-      expect(gatewayResult.action).toBe('block');
+      expect(gatewayResult.action).toBe('quarantine');
     });
 
     it('should allow content after agent downgrades classification', async () => {
