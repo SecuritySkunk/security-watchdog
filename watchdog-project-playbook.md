@@ -987,7 +987,7 @@ Complete stub with:
 ---
 
 #### PROMPT 10 — Module Spec: Locale Framework
-**Deliverables:** `10-module-locale.docx`, `10-locale-us-ga.json`, `10-locale-template.json`
+**Deliverables:** `docs/10-module-locale.docx`, `locales/10-locale-us-ga.json`, `locales/10-locale-template.json`
 **Estimated complexity:** Medium
 
 ```

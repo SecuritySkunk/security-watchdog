@@ -56,8 +56,8 @@ This document provides a complete index of all deliverables in the OpenClaw Secu
 | 04 | Module: Sensitive Data Registry | `04-module-registry.docx` | Full specification for Layer 0 Registry including CRUD operations, CLI commands, and caching | 🔄 | 01, 02, 03 | DEV |
 | 04a | Registry Implementation Stub | `04-registry-stub.ts` | TypeScript implementation skeleton with TODO markers for all Registry functions | 🔄 | 02a, 04 | DEV |
 | 10 | Module: Locale Framework | `10-module-locale.docx` | Jurisdiction-aware PII detection patterns, compliance rules, and locale management | 🔄 | 01, 02, 04 | DEV |
-| 10a | Locale Template | `10-locale-template.json` | JSON template for creating new locale definitions with schema annotations | 🔄 | 10 | DEV |
-| 10b | US-GA Locale Definition | `10-locale-us-ga.json` | Complete United States - Georgia locale with 19 PII patterns and compliance mappings | 🔄 | 10, 10a | DEV, OPS |
+| 10a | Locale Template | `locales/10-locale-template.json` | JSON template for creating new locale definitions with schema annotations | 🔄 | 10 | DEV |
+| 10b | US-GA Locale Definition | `locales/10-locale-us-ga.json` | Complete United States - Georgia locale with 19 PII patterns and compliance mappings | 🔄 | 10, 10a | DEV, OPS |
 
 ### Layer 1: Pattern Scanner
 
