@@ -20,7 +20,7 @@ export class InventoryRepository {
         storage_type, data_form, detected_by, current_classification
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(
+    const result = stmt.run(
       input.registryRefType,
       input.registryRefId,
       input.registryRefLabel,
@@ -31,7 +31,8 @@ export class InventoryRepository {
       input.currentClassification
     );
 
-    return this.getById(input.registryRefId)!;
+    // Use lastInsertRowid to get the inserted/updated row
+    return this.getById(Number(result.lastInsertRowid))!;
   }
 
   /**
