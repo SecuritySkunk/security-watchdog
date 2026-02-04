@@ -20,7 +20,15 @@ import { DecisionLogger } from '../audit/decision-logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const logger = pino({ name: 'watchdog:dashboard' });
+// ─── Logging with rotation support ───────────────────────────
+// Use pino-pretty in dev, standard pino in prod
+const isProd = process.env['NODE_ENV'] === 'production';
+const logger = pino({
+  name: 'watchdog:dashboard',
+  level: process.env['LOG_LEVEL'] || (isProd ? 'info' : 'debug'),
+  // In production, recommend piping to pino-rotate or similar
+  // e.g., node server.js | pino-rotate --frequency daily --path ./logs/
+});
 
 // ─── Configuration ───────────────────────────────────────────
 
@@ -28,12 +36,14 @@ export interface DashboardConfig {
   port: number;
   databasePath: string;
   corsOrigins?: string[];
+  /** Enable request logging (default: true in dev, false in prod) */
+  requestLogging?: boolean;
 }
 
 export const DEFAULT_CONFIG: DashboardConfig = {
   port: 3847,
   databasePath: '',
-  corsOrigins: ['http://localhost:3847'],
+  corsOrigins: ['*'],  // Allow all origins for local network access
 };
 
 // ─── Dashboard Server Class ──────────────────────────────────
@@ -45,6 +55,9 @@ export class DashboardServer {
   private gateway: GatewayHook;
   private auditLogger: DecisionLogger;
   private server?: ReturnType<typeof this.app.listen>;
+  private startedAt: number = 0;
+  private requestCount: number = 0;
+  private isShuttingDown: boolean = false;
 
   constructor(config: Partial<DashboardConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -72,9 +85,12 @@ export class DashboardServer {
     // Serve static files from public directory
     this.app.use(express.static(path.join(__dirname, 'public')));
 
-    // Request logging
+    // Request counting and logging
     this.app.use((req: Request, _res: Response, next: NextFunction) => {
-      logger.debug({ method: req.method, path: req.path }, 'Request');
+      this.requestCount++;
+      if (this.config.requestLogging !== false) {
+        logger.debug({ method: req.method, path: req.path }, 'Request');
+      }
       next();
     });
   }
@@ -82,7 +98,69 @@ export class DashboardServer {
   // ─── Routes ────────────────────────────────────────────────
 
   private setupRoutes(): void {
-    // Health check
+    // ─── Production Endpoints ────────────────────────────────
+    
+    // Root health check (for load balancers / k8s probes)
+    this.app.get('/health', (_req, res) => {
+      if (this.isShuttingDown) {
+        res.status(503).json({ status: 'shutting_down' });
+        return;
+      }
+      res.json({ 
+        status: 'ok',
+        uptime: this.startedAt > 0 ? Date.now() - this.startedAt : 0,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Prometheus-style metrics endpoint
+    this.app.get('/metrics', (_req, res) => {
+      const gatewayHealth = this.gateway.getHealth();
+      const uptimeMs = this.startedAt > 0 ? Date.now() - this.startedAt : 0;
+      
+      const metrics = [
+        '# HELP watchdog_uptime_seconds Server uptime in seconds',
+        '# TYPE watchdog_uptime_seconds gauge',
+        `watchdog_uptime_seconds ${Math.floor(uptimeMs / 1000)}`,
+        '',
+        '# HELP watchdog_http_requests_total Total HTTP requests served',
+        '# TYPE watchdog_http_requests_total counter',
+        `watchdog_http_requests_total ${this.requestCount}`,
+        '',
+        '# HELP watchdog_scans_total Total scans performed',
+        '# TYPE watchdog_scans_total counter',
+        `watchdog_scans_total ${gatewayHealth.metrics.scansTotal}`,
+        '',
+        '# HELP watchdog_blocks_total Total blocks',
+        '# TYPE watchdog_blocks_total counter',
+        `watchdog_blocks_total ${gatewayHealth.metrics.blocksTotal}`,
+        '',
+        '# HELP watchdog_quarantines_total Total quarantines created',
+        '# TYPE watchdog_quarantines_total counter',
+        `watchdog_quarantines_total ${gatewayHealth.metrics.quarantinesTotal}`,
+        '',
+        '# HELP watchdog_quarantines_pending Pending quarantine items',
+        '# TYPE watchdog_quarantines_pending gauge',
+        `watchdog_quarantines_pending ${gatewayHealth.metrics.quarantinesPending}`,
+        '',
+        '# HELP watchdog_errors_total Total errors',
+        '# TYPE watchdog_errors_total counter',
+        `watchdog_errors_total ${gatewayHealth.metrics.errorsTotal}`,
+        '',
+        '# HELP watchdog_patterns_count Number of active patterns',
+        '# TYPE watchdog_patterns_count gauge',
+        `watchdog_patterns_count ${this.registry.countPatterns()}`,
+        '',
+        '# HELP watchdog_entries_count Number of user entries',
+        '# TYPE watchdog_entries_count gauge',
+        `watchdog_entries_count ${this.registry.countEntries()}`,
+      ].join('\n');
+      
+      res.set('Content-Type', 'text/plain; version=0.0.4');
+      res.send(metrics);
+    });
+
+    // API health check (detailed)
     this.app.get('/api/health', (_req, res) => {
       res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
@@ -421,24 +499,53 @@ export class DashboardServer {
 
   start(): Promise<void> {
     return new Promise((resolve) => {
-      this.server = this.app.listen(this.config.port, () => {
+      // Listen on all interfaces (0.0.0.0) for network access
+      this.server = this.app.listen(this.config.port, '0.0.0.0', () => {
+        this.startedAt = Date.now();
         logger.info({ port: this.config.port }, 'Dashboard server started');
         resolve();
       });
     });
   }
 
+  /**
+   * Gracefully stop the server.
+   * Sets shutting down flag first, then closes connections.
+   */
   stop(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.server) {
         resolve();
         return;
       }
+      
+      logger.info('Initiating graceful shutdown...');
+      this.isShuttingDown = true;
+      
+      // Give in-flight requests time to complete (5 seconds max)
+      const forceShutdownTimeout = setTimeout(() => {
+        logger.warn('Force closing server after timeout');
+        resolve();
+      }, 5000);
+      
       this.server.close((err) => {
-        if (err) reject(err);
-        else resolve();
+        clearTimeout(forceShutdownTimeout);
+        if (err) {
+          logger.error({ error: err }, 'Error during shutdown');
+          reject(err);
+        } else {
+          logger.info('Server stopped gracefully');
+          resolve();
+        }
       });
     });
+  }
+
+  /**
+   * Check if server is running.
+   */
+  isRunning(): boolean {
+    return this.server !== undefined && !this.isShuttingDown;
   }
 
   getPort(): number {
