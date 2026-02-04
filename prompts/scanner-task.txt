@@ -1,0 +1,95 @@
+Create `pattern-scanner.ts` - Layer 1 Scanner for detecting sensitive data in text.
+
+## Requirements
+
+### Core Functionality
+1. Scan text content for sensitive data matches
+2. Use regex patterns from PatternRepository
+3. Use fuzzy matching (fuse.js) for user-defined entries from EntryRepository
+4. Return structured scan results with flags
+
+### Classes to Implement
+
+#### 1. ScannerConfig interface
+```typescript
+interface ScannerConfig {
+  databasePath: string;
+  fuseThreshold: number;      // 0.0-1.0, default 0.4
+  fuseDistance: number;       // default 100
+  minMatchLength: number;     // default 3
+  maxScanTimeMs: number;      // default 5000
+}
+```
+
+#### 2. ScanFlag interface
+```typescript
+interface ScanFlag {
+  id: string;                 // unique flag ID
+  matchedText: string;        // the text that matched
+  patternType: string;        // pattern type or entry label
+  classification: ClassificationLevel;
+  confidence: number;         // 0.0-1.0
+  source: 'pattern' | 'entry';
+  startIndex: number;
+  endIndex: number;
+  context: string;            // surrounding text snippet
+}
+```
+
+#### 3. ScanResult interface
+```typescript
+interface ScanResult {
+  scanId: string;
+  scannedAt: string;
+  inputLength: number;
+  durationMs: number;
+  flags: ScanFlag[];
+  flagCount: number;
+  highestClassification: ClassificationLevel | null;
+  verdict: 'clean' | 'flagged' | 'error';
+  error?: string;
+}
+```
+
+#### 4. PatternScanner class
+Constructor:
+- Takes ScannerConfig
+- Instantiates RegistryManager internally
+
+Methods:
+- initialize(): void - preloads patterns and builds fuse index
+- scan(text: string, localeIds?: string[]): ScanResult
+- scanMultiple(texts: string[], localeIds?: string[]): ScanResult[]
+- getLoadedPatternCount(): number
+- getLoadedEntryCount(): number
+- reload(): void - reloads patterns and entries from registry
+
+Private methods:
+- buildFuseIndex(): void
+- scanWithPatterns(text: string, patterns: PatternDefinition[]): ScanFlag[]
+- scanWithEntries(text: string): ScanFlag[]
+- extractContext(text: string, start: number, end: number, contextSize?: number): string
+- determineHighestClassification(flags: ScanFlag[]): ClassificationLevel | null
+
+## Implementation Notes
+- Use fuse.js for fuzzy matching user entries and variants
+- Use native RegExp for pattern matching
+- Generate unique scan IDs with crypto.randomUUID()
+- Track timing with performance.now()
+- Handle regex errors gracefully (log, skip pattern)
+- Classification priority: NEVER_SHARE > ASK_FIRST > INTERNAL_ONLY > PUBLIC
+
+## Imports
+```typescript
+import { randomUUID } from 'crypto';
+import Fuse from 'fuse.js';
+import { RegistryManager } from '../registry/registry-manager.js';
+import type { PatternDefinition, UserDefinedEntry, EntryVariant } from '../registry/types.js';
+import { ClassificationLevel } from '../shared/types.js';
+```
+
+## Style
+- Clear, readable code with JSDoc comments
+- Efficient scanning (compile regexes once, reuse)
+- Graceful error handling
+- Export interfaces and class
