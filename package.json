@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "db:init": "tsx scripts/init-db.ts",
     "db:seed": "tsx scripts/seed-db.ts",
+    "db:seed-patterns": "tsx scripts/seed-patterns.ts",
     "generate": "tsx tools/orchestrator.ts"
   },
   "keywords": [
