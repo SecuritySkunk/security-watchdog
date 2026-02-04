@@ -17,7 +17,8 @@
     "db:init": "tsx scripts/init-db.ts",
     "db:seed": "tsx scripts/seed-db.ts",
     "db:seed-patterns": "tsx scripts/seed-patterns.ts",
-    "generate": "tsx tools/orchestrator.ts"
+    "generate": "tsx tools/orchestrator.ts",
+    "dashboard": "tsx src/dashboard/cli.ts"
   },
   "keywords": [
     "openclaw",
@@ -30,6 +31,8 @@
   "license": "MIT",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "fuse.js": "^7.0.0",
     "pino": "^9.0.0",
     "pino-pretty": "^11.0.0",
@@ -37,6 +40,8 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",

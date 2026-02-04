@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Watchdog Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-green: #22c55e;
+      --accent-yellow: #eab308;
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+      --border: #475569;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header h1 span {
+      font-size: 1.8rem;
+    }
+
+    .posture-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .posture-control select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .stat-card h3 {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .stat-card .value.green { color: var(--accent-green); }
+    .stat-card .value.yellow { color: var(--accent-yellow); }
+    .stat-card .value.red { color: var(--accent-red); }
+    .stat-card .value.blue { color: var(--accent-blue); }
+    .stat-card .value.purple { color: var(--accent-purple); }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 0.95rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .tab.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .panel {
+      display: none;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    .panel h2 {
+      font-size: 1.2rem;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+    }
+
+    tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge.never-share { background: var(--accent-red); color: white; }
+    .badge.ask-first { background: var(--accent-yellow); color: black; }
+    .badge.internal-only { background: var(--accent-blue); color: white; }
+    .badge.public { background: var(--accent-green); color: white; }
+    .badge.pending { background: var(--accent-purple); color: white; }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-approve {
+      background: var(--accent-green);
+      color: white;
+    }
+
+    .btn-reject {
+      background: var(--accent-red);
+      color: white;
+    }
+
+    .btn-primary {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .test-panel {
+      display: flex;
+      gap: 20px;
+    }
+
+    .test-input {
+      flex: 1;
+    }
+
+    .test-input textarea {
+      width: 100%;
+      height: 150px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-family: monospace;
+      font-size: 0.9rem;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    .test-result {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 15px;
+    }
+
+    .test-result pre {
+      font-family: monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+
+    .empty-state span {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .refresh-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .refresh-btn:hover {
+      transform: scale(1.1);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinning {
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><span>🛡️</span> Security Watchdog</h1>
+      <div class="posture-control">
+        <label>Posture:</label>
+        <select id="posture-select" onchange="setPosture(this.value)">
+          <option value="permissive">Permissive</option>
+          <option value="standard" selected>Standard</option>
+          <option value="strict">Strict</option>
+          <option value="lockdown">Lockdown</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Scans</h3>
+        <div class="value blue" id="stat-scans">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Blocked</h3>
+        <div class="value red" id="stat-blocks">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Quarantined</h3>
+        <div class="value yellow" id="stat-quarantines">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Pending Review</h3>
+        <div class="value purple" id="stat-pending">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Patterns</h3>
+        <div class="value green" id="stat-patterns">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>User Entries</h3>
+        <div class="value green" id="stat-entries">-</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('quarantine')">🚨 Quarantine Queue</button>
+      <button class="tab" onclick="showTab('patterns')">🔍 Patterns</button>
+      <button class="tab" onclick="showTab('entries')">📋 User Entries</button>
+      <button class="tab" onclick="showTab('audit')">📜 Audit Log</button>
+      <button class="tab" onclick="showTab('test')">🧪 Test Scanner</button>
+    </div>
+
+    <!-- Quarantine Panel -->
+    <div id="quarantine-panel" class="panel active">
+      <h2>Pending Quarantine Items</h2>
+      <div id="quarantine-list"></div>
+    </div>
+
+    <!-- Patterns Panel -->
+    <div id="patterns-panel" class="panel">
+      <h2>Detection Patterns</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th>Classification</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="patterns-list"></tbody>
+      </table>
+    </div>
+
+    <!-- Entries Panel -->
+    <div id="entries-panel" class="panel">
+      <h2>User-Defined Sensitive Data</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Label</th>
+            <th>Display Name</th>
+            <th>Category</th>
+            <th>Classification</th>
+            <th>Variants</th>
+          </tr>
+        </thead>
+        <tbody id="entries-list"></tbody>
+      </table>
+    </div>
+
+    <!-- Audit Panel -->
+    <div id="audit-panel" class="panel">
+      <h2>Recent Decisions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Action</th>
+            <th>Classification</th>
+            <th>Destination</th>
+          </tr>
+        </thead>
+        <tbody id="audit-list"></tbody>
+      </table>
+    </div>
+
+    <!-- Test Panel -->
+    <div id="test-panel" class="panel">
+      <h2>Test the Scanner</h2>
+      <div class="test-panel">
+        <div class="test-input">
+          <textarea id="test-content" placeholder="Enter text to scan for sensitive data...">My SSN is 123-45-6789 and my email is test@example.com</textarea>
+          <button class="btn btn-primary" onclick="runTest()">🔍 Scan</button>
+        </div>
+        <div class="test-result">
+          <h3 style="margin-bottom: 10px; color: var(--text-secondary);">Result:</h3>
+          <pre id="test-result">Click "Scan" to test...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="refreshAll()" title="Refresh">🔄</button>
+
+  <script>
+    const API = '';
+
+    // Tab switching
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`[onclick="showTab('${name}')"]`).classList.add('active');
+      document.getElementById(`${name}-panel`).classList.add('active');
+    }
+
+    // Fetch stats
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API}/api/stats`);
+        const data = await res.json();
+        
+        document.getElementById('stat-scans').textContent = data.gateway.scans;
+        document.getElementById('stat-blocks').textContent = data.gateway.blocks;
+        document.getElementById('stat-quarantines').textContent = data.gateway.quarantines;
+        document.getElementById('stat-pending').textContent = data.gateway.pending;
+        document.getElementById('stat-patterns').textContent = data.registry.patterns;
+        document.getElementById('stat-entries').textContent = data.registry.entries;
+        document.getElementById('posture-select').value = data.gateway.posture;
+      } catch (e) {
+        console.error('Failed to load stats:', e);
+      }
+    }
+
+    // Quarantine
+    async function loadQuarantine() {
+      try {
+        const res = await fetch(`${API}/api/quarantine`);
+        const data = await res.json();
+        const list = document.getElementById('quarantine-list');
+        
+        if (data.quarantines.length === 0) {
+          list.innerHTML = '<div class="empty-state"><span>✅</span>No pending items</div>';
+          return;
+        }
+
+        list.innerHTML = `<table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Content Preview</th>
+              <th>Classification</th>
+              <th>Destination</th>
+              <th>Created</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.quarantines.map(q => `
+              <tr>
+                <td><code>${q.id.slice(0, 8)}...</code></td>
+                <td>${escapeHtml(q.content?.slice(0, 50) || 'N/A')}...</td>
+                <td><span class="badge ${q.highestClassification?.toLowerCase().replace('_', '-')}">${q.highestClassification || 'Unknown'}</span></td>
+                <td>${q.destination || 'N/A'}</td>
+                <td>${new Date(q.createdAt).toLocaleString()}</td>
+                <td class="action-buttons">
+                  <button class="btn btn-approve" onclick="approveQuarantine('${q.id}')">✓ Approve</button>
+                  <button class="btn btn-reject" onclick="rejectQuarantine('${q.id}')">✗ Reject</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+      } catch (e) {
+        console.error('Failed to load quarantine:', e);
+      }
+    }
+
+    async function approveQuarantine(id) {
+      if (!confirm('Approve this content to be sent?')) return;
+      try {
+        await fetch(`${API}/api/quarantine/${id}/approve`, { method: 'POST' });
+        refreshAll();
+      } catch (e) {
+        alert('Failed to approve');
+      }
+    }
+
+    async function rejectQuarantine(id) {
+      if (!confirm('Reject and block this content?')) return;
+      try {
+        await fetch(`${API}/api/quarantine/${id}/reject`, { method: 'POST' });
+        refreshAll();
+      } catch (e) {
+        alert('Failed to reject');
+      }
+    }
+
+    // Patterns
+    async function loadPatterns() {
+      try {
+        const res = await fetch(`${API}/api/patterns`);
+        const data = await res.json();
+        const list = document.getElementById('patterns-list');
+        
+        list.innerHTML = data.patterns.map(p => `
+          <tr>
+            <td>${escapeHtml(p.displayName)}</td>
+            <td>${escapeHtml(p.category)}</td>
+            <td>${escapeHtml(p.patternType)}</td>
+            <td><span class="badge ${p.defaultClassification.toLowerCase().replace('_', '-')}">${p.defaultClassification}</span></td>
+            <td>${p.isActive ? '✅ Active' : '❌ Inactive'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error('Failed to load patterns:', e);
+      }
+    }
+
+    // Entries
+    async function loadEntries() {
+      try {
+        const res = await fetch(`${API}/api/entries`);
+        const data = await res.json();
+        const list = document.getElementById('entries-list');
+        
+        if (data.entries.length === 0) {
+          list.innerHTML = '<tr><td colspan="5" class="empty-state">No user entries defined</td></tr>';
+          return;
+        }
+
+        list.innerHTML = data.entries.map(e => `
+          <tr>
+            <td><code>${escapeHtml(e.label)}</code></td>
+            <td>${escapeHtml(e.displayName)}</td>
+            <td>${escapeHtml(e.category)}</td>
+            <td><span class="badge ${e.classification.toLowerCase().replace('_', '-')}">${e.classification}</span></td>
+            <td>${e.variants?.length || 0}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error('Failed to load entries:', e);
+      }
+    }
+
+    // Audit log
+    async function loadAudit() {
+      try {
+        const res = await fetch(`${API}/api/audit?limit=20`);
+        const data = await res.json();
+        const list = document.getElementById('audit-list');
+        
+        if (!data.entries || data.entries.length === 0) {
+          list.innerHTML = '<tr><td colspan="5" class="empty-state">No audit entries yet</td></tr>';
+          return;
+        }
+
+        list.innerHTML = data.entries.map(e => `
+          <tr>
+            <td>${new Date(e.timestamp).toLocaleString()}</td>
+            <td>${e.type || 'scan'}</td>
+            <td>${e.action || 'N/A'}</td>
+            <td><span class="badge ${(e.classification || 'public').toLowerCase().replace('_', '-')}">${e.classification || 'N/A'}</span></td>
+            <td>${e.destination || 'N/A'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        console.error('Failed to load audit:', e);
+      }
+    }
+
+    // Set posture
+    async function setPosture(level) {
+      try {
+        await fetch(`${API}/api/gateway/posture`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ level })
+        });
+      } catch (e) {
+        alert('Failed to set posture');
+      }
+    }
+
+    // Test scanner
+    async function runTest() {
+      const content = document.getElementById('test-content').value;
+      const resultEl = document.getElementById('test-result');
+      
+      try {
+        const res = await fetch(`${API}/api/test/scan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, destination: 'test' })
+        });
+        const data = await res.json();
+        resultEl.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        resultEl.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    // Refresh all
+    async function refreshAll() {
+      const btn = document.querySelector('.refresh-btn');
+      btn.classList.add('spinning');
+      
+      await Promise.all([
+        loadStats(),
+        loadQuarantine(),
+        loadPatterns(),
+        loadEntries(),
+        loadAudit()
+      ]);
+      
+      btn.classList.remove('spinning');
+    }
+
+    // Escape HTML
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    // Initial load
+    refreshAll();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(refreshAll, 30000);
+  </script>
+</body>
+</html>
